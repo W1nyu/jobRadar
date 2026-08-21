@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 환경변수 · 시크릿 (절대 커밋 금지)
+.env
+.env.local
+*.pem
+*.key
+
+# 테스트 · 커버리지
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+
+# 백업 · 로그
+*.dump
+*.dump.gz
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 에디터
+.idea/
+.vscode/

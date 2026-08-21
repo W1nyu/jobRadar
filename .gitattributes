@@ -1,0 +1,9 @@
+# 배포 대상이 Linux다. 개발이 Windows여도 저장소와 체크아웃은 LF로 통일한다.
+# CRLF로 체크아웃된 셸 스크립트나 systemd 유닛은 서버에서 그대로 깨진다.
+* text=auto eol=lf
+
+# 바이너리
+*.png binary
+*.jpg binary
+*.gz  binary
+*.dump binary
