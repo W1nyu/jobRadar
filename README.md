@@ -8,6 +8,8 @@
 
 - 상세 설계: [세부기획서.md](./세부기획서.md)
 - 초기 기획: [기획.md](./기획.md)
+- **현재 상태**: [memory/CHECKPOINT.md](./memory/CHECKPOINT.md)
+- 작업 규칙 (에이전트용): [AGENTS.md](./AGENTS.md)
 
 ## 현재 상태
 

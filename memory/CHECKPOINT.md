@@ -1,0 +1,79 @@
+# Checkpoint — jobRadar 채용공고 모니터링 서비스 — 2026-08-22
+
+## The story so far
+
+Azure VM(2 vCPU / RAM 1GB)에서 24시간 돌릴 **개인용 채용공고 모니터링 서비스**를 만든다.
+등록한 채용 사이트를 주기적으로 수집해, 신규 공고 중 관심 키워드와 맞는 것만 골라
+카카오톡과 Web Push로 알린다. 개인용이자 **취업 포트폴리오**라, 단순 크롤링 스크립트가
+아니라 설계 근거(ADR)를 남기는 형태로 만든다.
+
+설계는 `세부기획서.md`(1,400행)에 확정돼 있다. **M0~M12 마일스톤 방식**으로 진행하며,
+각 마일스톤은 검증 가능한 DoD를 만족해야 다음으로 넘어간다.
+
+**현재: M1 완료. M2(PostgreSQL · 데이터 모델)가 다음.**
+M2부터는 **Codex에서 진행**한다.
+
+- 커밋: `a9ec6bb` (docs), `7b1efb5` (M1) — 브랜치 `main`, 원격 없음
+- 테스트 16개 통과 / ruff check·format 통과 / Python 3.12.14 (배포 대상과 일치)
+- 앱 기동 확인: `GET /healthz` → `200 {"status":"ok","version":"0.1.0","env":"development"}`
+
+### M1에서 실제로 만든 것
+
+```
+app/core/config.py     pydantic-settings. 별칭을 대문자로 생성해 검증 에러가
+                       .env에 적을 이름 그대로(SECRET_KEY) 나온다
+app/main.py            create_app(settings) 팩토리. 모듈 레벨 app 인스턴스 없음
+app/api/health.py      /healthz (DB 미접근)
+app/core/logging.py    structlog. 운영 JSON / 개발 콘솔
+app/cli.py             check-keys 명령
+.github/workflows/ci.yml   ruff → format → pytest
+```
+
+`app/{models,schemas,repositories,services,crawlers,notifications,worker}`는
+`__init__.py`만 있는 빈 패키지다. M2부터 채운다.
+
+## Decided
+
+- **PostgreSQL 채택** — API·워커 두 프로세스가 동시에 쓰므로 SQLite writer lock이 병목.
+  JSONB 원본 보관으로 파서 개선 시 재파싱 가능, pg_trgm으로 한글 부분일치 (세부기획서 §5)
+- **ADR-01 전면 동기(sync) 구조** — 사용자 1명·소스 10개 미만에서 async 이점 없음.
+  동시성은 사이트 단위 `ThreadPoolExecutor(max_workers=3)`
+- **ADR-02 API·워커 프로세스 분리** — systemd 유닛 2개. 유닛별 `MemoryMax`로 장애 격리
+- **ADR-03 Docker 미사용** — 1GB RAM에서 오버헤드 회피. systemd + venv 직접 배포
+- **알림 채널 2개** — 카카오톡 나에게 보내기 + Web Push (Telegram/Discord 제외)
+- **M3에 크롤러 2개** — API형(공공데이터포털) + HTML형(링커리어). 하나만 만들면
+  `BaseCrawler` 추상화가 그것에 과적합된다
+- **uvicorn 팩토리 모드** — 모듈 레벨 `app = create_app()`을 두면 임포트만으로 설정
+  검증이 돌아 `.env` 없는 CI에서 테스트 수집이 실패한다
+- **외부 API 키는 전부 선택값** — 승인 대기 중인 사람인 API 때문에 앱 전체가 못 뜨면 안 됨
+- **개행 LF 고정** (`.gitattributes`) — 배포가 Linux. CRLF로 체크아웃된 셸 스크립트는 깨진다
+
+## Waiting on the user
+
+- **공공데이터포털 활용신청 반영 대기** — 키는 `.env`에 설정됐으나 잡알리오 API 호출이
+  `SERVICE_KEY_IS_NOT_REGISTERED_ERROR`(403). 아래 Tried 참조. **M3 착수 전까지 해결 필요**
+- **사람인 API 승인 대기** — M7까지 되면 된다. 승인 후 `.env`에 `SARAMIN_ACCESS_KEY`만 채우면 켜짐
+- **GitHub 원격 저장소** — 없어서 CI 초록불을 확인하지 못했다. 워크플로 파일은 커밋돼 있음
+- **카카오 앱 / 도메인 / Azure VM** — M9·M11 전까지만 준비되면 된다
+
+## Next first action
+
+`docs/M0-checklist.md`의 M2 항목을 따라 로컬 PostgreSQL 16을 띄우고, `세부기획서.md` §6의
+테이블 10종을 SQLAlchemy 모델로 작성한 뒤 Alembic 초기 마이그레이션을 만든다
+(`pg_trgm` 확장 생성 포함).
+
+## Tried
+
+- **공공데이터포털 잡알리오 API(`apis.data.go.kr/1051000/recruitment/list`) 호출 → 403
+  `SERVICE_KEY_IS_NOT_REGISTERED_ERROR`(returnReasonCode 30).**
+  키를 원문 그대로 붙인 경우와 URL 디코딩 후 재인코딩한 경우 **둘 다 동일 에러** — 따라서
+  Encoding/Decoding 혼동 문제가 **아니다**. 남은 원인은 (a) 이 API를 활용신청하지 않았거나
+  (b) 발급/신청 직후라 반영 전(보통 1시간, 최대 1일). 다시 시도하기 전에 마이페이지에서
+  **해당 API가 활용신청 목록에 있는지 먼저 확인할 것**
+- **`starlette.testclient` + `httpx`** → `StarletteDeprecationWarning`. Starlette 1.6부터
+  `httpx2`를 요구한다. dev 의존성을 `httpx2`로 교체해 해결
+- **ruff format이 `세부기획서.md`를 대상으로 잡음** — ruff 0.16이 마크다운 내 Python 코드
+  블록을 포맷한다. 문서의 코드는 설명용 발췌라 `extend-exclude = ["*.md"]`로 제외
+- **`uv`가 PATH에 없음** — `py -3 -m uv`로 호출한다. 실제 경로는
+  `C:\Users\Winyu\AppData\Roaming\Python\Python314\Scripts\uv.exe`
+- **Windows 콘솔(cp949)에서 CLI 한글 깨짐** — `app/cli.py`의 `_force_utf8_stdout()`으로 해결
