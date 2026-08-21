@@ -17,8 +17,9 @@
 |---|---|
 | M0 사전 준비 | 진행 중 — [docs/M0-checklist.md](./docs/M0-checklist.md) (외부 키 발급 대기) |
 | M1 프로젝트 기본 환경 | **완료** (CI 초록불은 원격 저장소 생성 후 확인) |
-| M2 PostgreSQL · 데이터 모델 | 다음 |
-| M3 ~ M12 | 대기 |
+| M2 PostgreSQL · 데이터 모델 | **완료** |
+| M3 첫 크롤러 2종 | 다음 |
+| M4 ~ M12 | 대기 |
 
 사람인 API는 승인 대기 중이다. 승인 후 `.env`에 `SARAMIN_ACCESS_KEY`를 채우고
 `uv run python -m app.cli check-keys`로 인식 여부를 확인하면 된다 — 코드 변경은 필요 없다.
@@ -38,6 +39,19 @@ uv run uvicorn app.main:create_app --factory --reload
 ```
 
 `uv`가 PATH에 없으면 `py -3 -m uv`로 호출한다.
+
+### 데이터베이스 (M2)
+
+개발용 PostgreSQL 16이 준비된 뒤 아래 명령으로 스키마와 기본 키워드 8개를 만든다.
+
+```bash
+uv run alembic upgrade head
+uv run python -m app.seed
+```
+
+롤백 검증은 `uv run alembic downgrade base`로 할 수 있다. 기본 `DATABASE_URL`은 Windows에서
+Docker의 IPv6 `localhost` 우선 해석으로 인한 연결 지연을 피하도록 `127.0.0.1`을 사용한다.
+운영 환경에서는 `.env`의 `DATABASE_URL`로 PostgreSQL 주소와 자격 증명을 명시한다.
 
 ### 확인
 

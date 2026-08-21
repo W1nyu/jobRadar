@@ -528,11 +528,14 @@ name = "jobradar"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "alembic" },
     { name = "fastapi" },
     { name = "jinja2" },
+    { name = "psycopg", extra = ["binary"] },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
+    { name = "sqlalchemy" },
     { name = "structlog" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -544,11 +547,6 @@ crawl = [
     { name = "httpx" },
     { name = "lxml" },
     { name = "tenacity" },
-]
-db = [
-    { name = "alembic" },
-    { name = "psycopg", extra = ["binary"] },
-    { name = "sqlalchemy" },
 ]
 notify = [
     { name = "argon2-cffi" },
@@ -570,7 +568,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "alembic", marker = "extra == 'db'", specifier = ">=1.14" },
+    { name = "alembic", specifier = ">=1.14" },
     { name = "apscheduler", marker = "extra == 'schedule'", specifier = ">=3.11" },
     { name = "argon2-cffi", marker = "extra == 'notify'", specifier = ">=23.1" },
     { name = "beautifulsoup4", marker = "extra == 'crawl'", specifier = ">=4.12" },
@@ -581,17 +579,17 @@ requires-dist = [
     { name = "itsdangerous", marker = "extra == 'notify'", specifier = ">=2.2" },
     { name = "jinja2", specifier = ">=3.1" },
     { name = "lxml", marker = "extra == 'crawl'", specifier = ">=5.3" },
-    { name = "psycopg", extras = ["binary"], marker = "extra == 'db'", specifier = ">=3.2" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "pydantic", specifier = ">=2.9" },
     { name = "pydantic-settings", specifier = ">=2.6" },
     { name = "python-dotenv", specifier = ">=1.0" },
     { name = "pywebpush", marker = "extra == 'notify'", specifier = ">=2.0" },
-    { name = "sqlalchemy", marker = "extra == 'db'", specifier = ">=2.0.36" },
+    { name = "sqlalchemy", specifier = ">=2.0.36" },
     { name = "structlog", specifier = ">=24.4" },
     { name = "tenacity", marker = "extra == 'crawl'", specifier = ">=9.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
 ]
-provides-extras = ["db", "crawl", "schedule", "notify"]
+provides-extras = ["crawl", "schedule", "notify"]
 
 [package.metadata.requires-dev]
 dev = [

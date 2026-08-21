@@ -1,0 +1,43 @@
+"""SQLAlchemy 영속 모델 공개 API."""
+
+from app.models.entities import (
+    AppSetting,
+    Base,
+    CrawlRun,
+    CrawlStatus,
+    CrawlTrigger,
+    FetchStrategy,
+    JobKeywordMatch,
+    JobPosting,
+    JobPostingRevision,
+    Keyword,
+    KeywordKind,
+    MatchMode,
+    Notification,
+    NotificationChannel,
+    NotificationStatus,
+    OAuthToken,
+    PushSubscription,
+    Source,
+)
+
+__all__ = [
+    "AppSetting",
+    "Base",
+    "CrawlRun",
+    "CrawlStatus",
+    "CrawlTrigger",
+    "FetchStrategy",
+    "JobKeywordMatch",
+    "JobPosting",
+    "JobPostingRevision",
+    "Keyword",
+    "KeywordKind",
+    "MatchMode",
+    "Notification",
+    "NotificationChannel",
+    "NotificationStatus",
+    "OAuthToken",
+    "PushSubscription",
+    "Source",
+]

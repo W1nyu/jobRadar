@@ -12,15 +12,12 @@ dependencies = [
     "pydantic-settings>=2.6",
     "structlog>=24.4",
     "python-dotenv>=1.0",
-]
-
-[project.optional-dependencies]
-# M2에서 활성화 (PostgreSQL · 데이터 모델)
-db = [
     "sqlalchemy>=2.0.36",
     "alembic>=1.14",
     "psycopg[binary]>=3.2",
 ]
+
+[project.optional-dependencies]
 # M3에서 활성화 (크롤러)
 crawl = [
     "httpx>=0.28",

@@ -62,3 +62,15 @@ def test_기본값은_운영이_아니라_개발이다() -> None:
 
     assert settings.app_env == "development"
     assert settings.is_production is False
+
+
+def test_데이터베이스_연결과_풀_설정을_환경변수로_받는다() -> None:
+    settings = make_settings(
+        DATABASE_URL="postgresql+psycopg://test:test@localhost:5432/jobradar_test",
+        DB_POOL_SIZE="3",
+        DB_MAX_OVERFLOW="1",
+    )
+
+    assert settings.database_url == "postgresql+psycopg://test:test@localhost:5432/jobradar_test"
+    assert settings.db_pool_size == 3
+    assert settings.db_max_overflow == 1

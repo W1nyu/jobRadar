@@ -43,6 +43,12 @@ class Settings(BaseSettings):
         description="True면 JSON 로그(운영용), False면 사람이 읽는 컬러 로그(개발용)",
     )
 
+    # ---- 데이터베이스 ----
+    # Windows 개발 Docker의 IPv6 localhost 우선 해석으로 인한 연결 지연을 피하려고 IPv4 loopback을 쓴다.
+    database_url: str = "postgresql+psycopg://jobradar:jobradar@127.0.0.1:5432/jobradar"
+    db_pool_size: int = 5
+    db_max_overflow: int = 2
+
     # ---- 외부 API 키 (모두 선택값) ----
     data_go_kr_service_key: str | None = None
     saramin_access_key: str | None = None
