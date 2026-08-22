@@ -6,10 +6,16 @@ from datetime import UTC, datetime, timedelta
 from urllib.parse import parse_qs, urlsplit
 
 import httpx
+import pytest
 import respx
 from cryptography.fernet import Fernet
 
-from app.services.kakao import EncryptedTokenCipher, KakaoOAuthClient, KakaoTokenSet
+from app.services.kakao import (
+    EncryptedTokenCipher,
+    KakaoOAuthClient,
+    KakaoOAuthError,
+    KakaoTokenSet,
+)
 
 
 def test_카카오_인가_url은_talk_message_scope와_state를_포함한다() -> None:
@@ -54,6 +60,25 @@ def test_인가코드는_카카오_토큰_응답으로_교환된다() -> None:
     assert route.called is True
     assert b"grant_type=authorization_code" in route.calls.last.request.content
     assert b"client_secret=client-secret" in route.calls.last.request.content
+
+
+@respx.mock
+def test_카카오_토큰_교환의_invalid_client는_안전한_원인으로_분류한다() -> None:
+    respx.post("https://kauth.kakao.com/oauth/token").mock(
+        return_value=httpx.Response(
+            401,
+            json={"error": "invalid_client", "error_description": "Bad client credentials"},
+        )
+    )
+    client = KakaoOAuthClient(
+        rest_api_key="rest-key",
+        redirect_uri="https://example.com/oauth/kakao/callback",
+    )
+
+    with pytest.raises(KakaoOAuthError) as raised:
+        client.exchange_code("authorization-code")
+
+    assert raised.value.reason == "invalid_client"
 
 
 def test_토큰은_fernet으로_암호화한_뒤에만_복호화된다() -> None:

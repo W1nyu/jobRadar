@@ -30,7 +30,12 @@ from app.services.admin import (
 )
 from app.services.admin_auth import AdminAuthService
 from app.services.crawl_runner import SourceNotFoundError
-from app.services.kakao import EncryptedTokenCipher, KakaoOAuthClient, KakaoTokenService
+from app.services.kakao import (
+    EncryptedTokenCipher,
+    KakaoOAuthClient,
+    KakaoOAuthError,
+    KakaoTokenService,
+)
 from app.services.keywords import KeywordConflictError, KeywordNotFoundError, KeywordService
 from app.services.notification_history import NotificationHistoryService
 
@@ -502,6 +507,11 @@ def kakao_callback(
             cipher=EncryptedTokenCipher(settings.fernet_key or ""),
             client=client,
         ).save(token_set)
+    except KakaoOAuthError as error:
+        return RedirectResponse(
+            url=f"/admin/notifications?oauth=failed&reason={error.reason}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
     except Exception:
         return RedirectResponse(
             url="/admin/notifications?oauth=failed&reason=token_exchange",

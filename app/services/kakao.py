@@ -21,6 +21,10 @@ _PROVIDER = "kakao"
 class KakaoOAuthError(RuntimeError):
     """토큰 교환·갱신 중 카카오가 반환한 실패."""
 
+    def __init__(self, message: str, *, reason: str = "token_exchange") -> None:
+        super().__init__(message)
+        self.reason = reason
+
 
 class KakaoReauthenticationRequired(KakaoOAuthError):
     """저장된 refresh token이 더는 갱신할 수 없는 경우."""
@@ -111,8 +115,17 @@ class KakaoOAuthClient:
             response = self.client.post(_TOKEN_URL, data=request_data)
             response.raise_for_status()
             body = response.json()
-        except (httpx.HTTPError, ValueError) as error:
-            raise KakaoOAuthError(str(error)[:1_000]) from error
+        except httpx.HTTPStatusError as error:
+            raise KakaoOAuthError(
+                "카카오 토큰 발급 요청이 거절됐습니다.",
+                reason=_kakao_error_reason(error.response),
+            ) from error
+        except httpx.HTTPError as error:
+            raise KakaoOAuthError(
+                "카카오 토큰 서버와 통신하지 못했습니다.", reason="network"
+            ) from error
+        except ValueError as error:
+            raise KakaoOAuthError("카카오 토큰 응답을 해석할 수 없습니다.") from error
         finally:
             if self._owns_client:
                 self.client.close()
@@ -253,3 +266,13 @@ def _token_values(token_set: KakaoTokenSet, cipher: EncryptedTokenCipher) -> dic
         "access_expires_at": token_set.access_expires_at,
         "refresh_expires_at": token_set.refresh_expires_at,
     }
+
+
+def _kakao_error_reason(response: httpx.Response) -> str:
+    """카카오 응답에서 화면에 안전하게 표시할 오류 코드만 추린다."""
+    try:
+        body = response.json()
+    except ValueError:
+        return "token_exchange"
+    error = body.get("error") if isinstance(body, dict) else None
+    return error if error in {"invalid_client", "invalid_grant"} else "token_exchange"

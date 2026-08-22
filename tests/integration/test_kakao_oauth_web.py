@@ -119,6 +119,8 @@ def test_토큰_교환_실패는_알림화면에_실패원인을_표시한다(cl
 
     callback = client.get(f"/oauth/kakao/callback?code=code-value&state={state}")
 
-    assert callback.headers["location"] == (
-        "/admin/notifications?oauth=failed&reason=token_exchange"
-    )
+    assert callback.headers["location"] == "/admin/notifications?oauth=failed&reason=invalid_client"
+
+    history = client.get(callback.headers["location"])
+
+    assert "클라이언트 시크릿" in history.text
