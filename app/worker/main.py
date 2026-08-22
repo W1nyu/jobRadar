@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings, get_settings
 from app.core.db import SessionLocal, get_engine
 from app.core.logging import configure_logging
+from app.crawlers.sources import with_runtime_credentials
 from app.models import CrawlTrigger, Source
 from app.repositories import AppSettingRepository
 from app.services.crawl_runner import CrawlExecutionService, crawl_registered_source
@@ -147,7 +148,7 @@ def build_worker(settings: Settings | None = None) -> WorkerScheduler:
         engine=engine,
         session_factory=SessionLocal,
         crawl=lambda source: crawl_registered_source(
-            source,
+            with_runtime_credentials(source, settings),
             user_agent=settings.crawl_user_agent,
             max_response_bytes=settings.crawl_max_response_bytes,
         ),

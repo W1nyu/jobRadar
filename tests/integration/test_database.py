@@ -4,10 +4,11 @@ from collections.abc import Generator
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, select, text
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
+from app.core.config import Settings
 from app.models import (
     FetchStrategy,
     JobPosting,
@@ -16,7 +17,7 @@ from app.models import (
     Source,
 )
 from app.repositories import SourceRepository
-from app.seed import DEFAULT_KEYWORDS, seed_default_keywords
+from app.seed import DEFAULT_KEYWORDS, seed_builtin_sources, seed_default_keywords
 
 TEST_DATABASE_URL = "postgresql+psycopg://jobradar:jobradar@127.0.0.1:5432/jobradar"
 
@@ -125,6 +126,39 @@ def test_기본_키워드_시드는_8개를_중복_없이_등록한다(db_sessio
 
     assert added_on_repeat == 0
     assert set(DEFAULT_KEYWORDS) <= terms
+
+
+@pytest.mark.integration
+def test_기본_소스_시드는_키를_db에_저장하지_않고_네개_이상을_활성화한다(
+    db_session: Session,
+) -> None:
+    settings = Settings(
+        _env_file=None,
+        APP_BASE_URL="https://example.com",
+        SECRET_KEY="test-secret",
+        MSIT_RECRUITMENT_SERVICE_KEY="test-msit-key",
+    )
+
+    seed_builtin_sources(db_session, settings)
+    sources = list(
+        db_session.scalars(
+            select(Source).where(
+                Source.slug.in_(
+                    (
+                        "datagokr-msit-recruitment",
+                        "linkareer",
+                        "inthiswork",
+                        "kofia",
+                        "alio-recruitment",
+                    )
+                )
+            )
+        )
+    )
+
+    assert len(sources) >= 4
+    assert all(source.is_active for source in sources)
+    assert all("test-msit-key" not in str(source.config) for source in sources)
 
 
 @pytest.mark.integration

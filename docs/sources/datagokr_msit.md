@@ -23,6 +23,12 @@
 - 디코딩한 전용 키로 실제 목록을 호출해 HTTP `200`, 공고 10건을 확인했다. 응답은
   `response` 배열 안의 `header`·`body`와, `items[].item`·`files[].file` 중첩 구조다.
 
+## robots·접근 결과
+
+- 공공데이터포털의 인증된 공식 REST API만 사용하므로 HTML 경로에 대한 robots 규칙을
+  적용하지 않는다. 목록·상세 웹페이지를 크롤링하지 않는다.
+- 키가 없거나 활용 권한이 없으면 이 소스만 비활성화한다. 키를 바꿔가며 재시도하지 않는다.
+
 ## 골든 파일
 
 - `tests/fixtures/datagokr_msit/recruit_list_contract.json`: 2026-08-22 실제 성공 응답의

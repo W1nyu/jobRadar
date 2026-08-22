@@ -59,3 +59,25 @@ def test_비활성화되거나_사라진_소스의_스케줄_잡은_제거된다
     worker.refresh_jobs()
     assert worker.scheduler.get_job("crawl-source-42") is None
     worker.shutdown()
+
+
+def test_네개_이상의_활성_소스를_각각_스케줄_잡으로_등록한다() -> None:
+    sources = [ScheduledSource(id=source_id, interval_minutes=60) for source_id in (1, 2, 3, 4, 5)]
+    worker = WorkerScheduler(
+        runner=RecordingRunner(),
+        source_loader=lambda: sources,
+        heartbeat=lambda: None,
+        max_workers=3,
+    )
+
+    worker.refresh_jobs()
+    try:
+        registered_ids = {
+            job.id.removeprefix("crawl-source-")
+            for job in worker.scheduler.get_jobs()
+            if job.id.startswith("crawl-source-")
+        }
+    finally:
+        worker.shutdown()
+
+    assert registered_ids == {"1", "2", "3", "4", "5"}

@@ -14,6 +14,7 @@ from app.core.config import Settings, get_settings
 from app.crawlers import CrawlResult, get_crawler
 from app.crawlers.http import HttpClient
 from app.crawlers.sources import build_builtin_source
+from app.source_catalog import BUILTIN_SOURCE_DEFINITIONS
 
 if TYPE_CHECKING:
     from app.crawlers.base import CrawlSource
@@ -122,8 +123,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="app.cli", description="jobRadar 운영 CLI")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("check-keys", help="외부 API 키 설정 상태를 출력한다")
-    crawl_parser = sub.add_parser("crawl", help="M3 등록 소스를 한 번 수집한다")
-    crawl_parser.add_argument("slug", choices=("datagokr-msit-recruitment", "linkareer"))
+    crawl_parser = sub.add_parser("crawl", help="등록 소스를 한 번 수집한다")
+    crawl_parser.add_argument(
+        "slug", choices=tuple(definition.slug for definition in BUILTIN_SOURCE_DEFINITIONS)
+    )
 
     args = parser.parse_args(argv)
     if args.command == "check-keys":

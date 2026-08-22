@@ -22,10 +22,14 @@
 | M4 신규 · 중복 · 변경 탐지 | **완료** — 정규화·UPSERT·변경 이력·3회 미노출 종료 |
 | M5 키워드 매칭 | **완료** — include/exclude·매칭 근거·키워드 CRUD API |
 | M6 스케줄러 자동 수집 | **완료** — APScheduler·실행 이력·advisory lock·하트비트 |
-| M7 ~ M12 | 대기 |
+| M7 다중 사이트 확장 | **완료** — 인디스워크 JSON·금융투자협회 HTML·잡알리오 JSON, 기본 소스 5개 스케줄 |
+| M8 ~ M12 | 대기 |
 
-사람인 API는 승인 대기 중이다. 승인 후 `.env`에 `SARAMIN_ACCESS_KEY`를 채우고
-`uv run python -m app.cli check-keys`로 인식 여부를 확인하면 된다 — 코드 변경은 필요 없다.
+사람인 API는 승인 대기 중이며, 승인 후 실제 성공 응답 골든 파일을 확보한 뒤 별도 소스로
+추가한다. 잡플래닛은 이용약관상 자동 수집 허용 범위가 확인되기 전까지 보류한다.
+
+사이트 조사 결과와 추가 절차는 [docs/sources](./docs/sources/) 및
+[docs/adding-a-source.md](./docs/adding-a-source.md)에 정리했다.
 
 ## 기술 스택
 

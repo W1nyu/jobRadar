@@ -11,7 +11,7 @@
 
 ## 준수 사항
 
-- `robots.txt`는 `User-agent: *`에 대해 `/list/activity`를 허용한다.
+- 2026-08-22 확인한 `robots.txt`는 `User-agent: *`에 대해 `/list/activity`를 허용한다.
 - 차단된 `/stem/learn/...` 경로는 요청하지 않는다.
 - 고정된 식별 User-Agent를 사용하고, 기본 제한인 분당 30회보다 훨씬 낮은 빈도로 수집한다.
 

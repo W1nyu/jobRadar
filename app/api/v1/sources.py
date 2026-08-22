@@ -7,6 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.core.db import SessionLocal, get_engine
+from app.crawlers.sources import with_runtime_credentials
 from app.models import CrawlTrigger
 from app.schemas.crawl import CrawlExecutionResponse
 from app.services.crawl_runner import (
@@ -26,7 +27,7 @@ def get_crawl_execution_service(request: Request) -> CrawlExecutionService:
         engine=engine,
         session_factory=SessionLocal,
         crawl=lambda source: crawl_registered_source(
-            source,
+            with_runtime_credentials(source, settings),
             user_agent=settings.crawl_user_agent,
             max_response_bytes=settings.crawl_max_response_bytes,
         ),

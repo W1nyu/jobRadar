@@ -3,86 +3,71 @@
 ## The story so far
 
 Azure VM(2 vCPU / RAM 1GB)에서 24시간 돌릴 개인용 채용공고 모니터링 서비스다.
-M0~M12 마일스톤 방식으로 진행하며, 현재 **M6(스케줄러 자동 수집)까지 완료**했다.
-다음 마일스톤은 M7(다중 사이트 확장)이다.
+M0~M12 마일스톤 방식으로 진행하며, 현재 **M7(다중 사이트 확장)까지 완료**했다.
+다음 마일스톤은 M8(웹 관리 UI)이다.
 
-- 완료 커밋: `7b1efb5` (M1), `9f8d9b9` (M2), `093a3ca` (M3), `cc80637` (M4), `7fbfd65` (M5)
-- 현재 검증: pytest 69개 통과, `ruff check .` 및 `ruff format --check .` 통과
+- 완료 커밋: `7b1efb5` (M1), `9f8d9b9` (M2), `093a3ca` (M3), `cc80637` (M4),
+  `7fbfd65` (M5), `e8c0df9` (M6)
+- 현재 검증: pytest **77개 통과**, `ruff check .` 및 `ruff format --check .` 통과
 - 로컬 PostgreSQL은 `127.0.0.1:5432/jobradar`, Alembic revision `b24a4f6d9c1e` (head)
 
-### M6에서 실제로 만든 것
+### M7에서 실제로 만든 것
 
 ```
-app/core/locks.py                    PostgreSQL source별 세션 advisory lock
-app/services/crawl_runner.py         락·크롤링·Collector·crawl_runs 실행 서비스
-app/worker/main.py                   APScheduler, 활성 소스 동기화, 하트비트, 워커 엔트리포인트
-app/api/v1/sources.py                POST /api/v1/sources/{id}/crawl 수동 트리거
-app/schemas/crawl.py                 수동 수집 실행 결과 API 계약
-tests/integration/test_advisory_lock.py 물리 세션 종료 뒤 락 해제 검증
-tests/integration/test_crawl_runner.py success/partial/failed/skipped 실행 이력 검증
-tests/integration/test_worker_heartbeat.py app_settings 하트비트 저장 검증
-tests/unit/test_worker_scheduler.py  APScheduler 3사이클·잡 제거 검증
-tests/unit/test_sources_api.py       수동 트리거 API 서비스 위임 검증
+app/crawlers/inthiswork.py           WordPress 채용 분류 JSON 크롤러
+app/crawlers/kofia.py                금융투자협회 회원사 채용안내 HTML 크롤러
+app/crawlers/alio.py                 잡알리오 공개 채용목록 JSON 크롤러
+app/source_catalog.py                비밀 없는 기본 소스 5개 정의
+app/crawlers/sources.py              실행 시점 API 키 주입
+app/seed.py                          기본 소스 최초 시드
+docs/adding-a-source.md              새 소스 추가 절차
+docs/sources/*.md                    소스별 robots·경로·보류 근거
 ```
 
-- `apscheduler`를 기본 의존성으로 승격했다. 워커는 `BackgroundScheduler`와
-  `ThreadPoolExecutor(max_workers=3)`으로 활성 소스별 interval 잡을 실행한다.
-- 워커 시작 직후 하트비트를 남기고, 이후 60초마다 `app_settings.worker_heartbeat`를 UTC 시각으로
-  갱신한다. 활성 소스 목록도 60초마다 동기화한다.
-- `CrawlExecutionService`는 전용 PostgreSQL 연결에서 `pg_try_advisory_lock`을 잡는다. 이미
-  실행 중이면 크롤러를 호출하지 않고 `crawl_runs.status=skipped`만 남긴다.
-- SQLAlchemy 풀에서 논리적 `connection.close()`만으로는 DB 세션 락이 해제되지 않으므로, 정상
-  경로에서는 반드시 `pg_advisory_unlock`을 호출한다. 워커 강제 종료는 PostgreSQL 물리 연결
-  종료로 자동 해제된다.
-- running 실행 이력은 네트워크 호출 전에 commit한다. 결과·공고 저장·실행 요약은 하나의 후속
-  트랜잭션에 commit하며, 예외는 failed, 부분 응답은 partial로 전환한다.
-- 비활성 소스는 스케줄 잡 동기화에서 제거하며, 이미 등록된 잡이 실행돼도 runner가 다시 확인해
-  크롤러를 호출하지 않는다.
-- `POST /api/v1/sources/{id}/crawl`는 같은 실행 서비스를 manual trigger로 호출한다. 현재 M8
-  소스 관리 UI 전에는 DB에 구성된 활성 소스를 대상으로 사용한다.
+- 실제 DB에 기본 소스 5개를 시드했고, 워커에는 `crawl-source-218`~`crawl-source-222`의
+  개별 잡으로 등록됨을 확인했다. 워커 풀은 기존대로 `max_workers=3`이므로 순간 동시 요청은
+  세 개로 제한된다.
+- 2026-08-22 단발 검증 결과: 인디스워크 20건, 금융투자협회 10건, 잡알리오 20건을 수집했다.
+- 인디스워크는 일반 RSS 대신 `신입/인턴`·`주니어경력` WordPress 분류만 요청한다. 이전 403은
+  동일 식별 User-Agent로 재현되지 않았고, 우회·로테이션은 하지 않았다.
+- 잡알리오는 이전 공공데이터포털 403 경로가 아닌 공식 포털의 공개 채용목록 JSON을 사용한다.
+  `ALIO_SERVICE_KEY`는 저장하거나 전송하지 않는다. 로그인 뒤 사용하는 별도 인증 Open API는
+  정확한 명세를 확인할 때까지 구현하지 않는다.
+- 키가 필요한 과기정통부 소스는 `sources.config`에 키를 쓰지 않고 실행 객체에만 주입한다.
+  수동 API 트리거와 워커 모두 같은 주입 경로를 사용한다.
+- `collector.py`, `normalizer.py`, `deduplicator.py`, `keyword_matcher.py`는 M7에서 변경하지
+  않았다. 새 파서는 모두 DB를 모르고 `RawJob`만 반환한다.
 
-### 이전 마일스톤 핵심 상태
+### 보류한 소스
 
-- M1: FastAPI 팩토리, 설정, 구조화 로깅, `/healthz`, CI 골격.
-- M2: PostgreSQL 10개 테이블, pg_trgm, Alembic, 기본 CRUD와 키워드 시드.
-- M3: 공공데이터포털 과기정통부 API와 링크어리어 HTML 크롤러가 DB 독립적으로 `RawJob`을 반환.
-- M4: DTO 정규화, ON CONFLICT 중복 방지, 변경 이력, 3회 미관측 종료.
-- M5: include/exclude 키워드, 근거 저장, 키워드 CRUD API.
+- **사람인**: `SARAMIN_ACCESS_KEY`가 미설정이며 공식 API는 승인·앱 등록이 전제다. 성공 응답
+  골든 파일을 확보한 뒤 별도 변경으로 추가한다.
+- **잡플래닛**: 이용약관상 자동 수집 허용 범위가 명확하지 않아 구현하지 않았다.
+- **고용24**: 개인회원 `WORK24_SERVICE_KEY`로는 채용정보 목록 Open API를 사용할 수 없어
+  기존 결정대로 보류한다.
 
 ## Decided
 
-- **동기 구조** — 사용자 1명·소스 10개 미만에서는 async가 불필요하다. 병렬은 worker의
-  `ThreadPoolExecutor(max_workers=3)`만 사용한다.
-- **실행 이력 우선 commit** — 크롤러/파서가 프로세스를 중단시켜도 `running` 시작 사실을 남겨
-  운영자가 원인을 추적할 수 있게 한다.
-- **세션 advisory lock** — API와 worker의 수동/자동 실행 모두 같은 DB 락을 사용한다. Redis 등
-  별도 인프라 없이 중복 수집을 막고, 프로세스 종료 시 자동 복구된다.
-- **계층 경계** — API는 실행 서비스만 호출하고, service가 repository·Collector를 조합한다.
-  크롤러는 여전히 `RawJob`까지만 알고 DB를 모른다.
-- **고용24 보류** — 현재 `WORK24_SERVICE_KEY`는 개인회원 키라 채용정보 목록을 이용할 수 없어,
-  구현은 M7까지 보류한다.
+- **소스 카탈로그와 비밀 분리** — `app/source_catalog.py`에는 URL·빈도·필터만 두고, 키는
+  `Settings`에서 실행 시점에만 복사한다. DB 백업·로그·관리 UI에 API 키가 새지 않게 하기 위해서다.
+- **시드로 M7 소스 등록** — M8의 소스 관리 UI 전에도 실제 워커가 소스를 실행해야 하므로,
+  `app.seed`는 없는 기본 소스만 추가하고 기존 운영 설정은 덮어쓰지 않는다.
+- **공개 JSON 우선** — 인디스워크와 잡알리오는 목록 화면이 제공하는 공개 JSON을 사용한다.
+  상세 페이지·첨부 파일은 요청하지 않아 트래픽과 약관 리스크를 낮춘다.
 
 ## Waiting on the user
 
-- **잡알리오 API 경로·활용신청 재확인** — `ALIO_SERVICE_KEY`는 설정됐으나 이전
-  `apis.data.go.kr/1051000/recruitment/list` 호출은 403 코드 30이었다. M7에서 해당 API의
-  활용신청 상태와 정확한 경로를 재확인한 뒤 추가한다.
-- **사람인 API 승인 대기** — M7 전까지 승인되면 된다.
+- **사람인 API 승인 및 `SARAMIN_ACCESS_KEY`** — 승인 뒤 실제 성공 응답을 확보하면 추가 소스
+  작업을 재개한다.
 - **GitHub 원격 저장소** — 아직 없어 CI 원격 초록불은 확인하지 못했다.
 - **카카오 앱 / 도메인 / Azure VM** — M9·M11 전까지 준비한다.
 
 ## Next first action
 
-`세부기획서.md` §10의 M7 구간만 읽고, 인디스워크 403 원인 재조사부터 시작한다. 이어서
-공식/허용된 소스만 추가하고, 새 소스가 `crawler.py`·픽스처·설정만으로 확장됨을 검증한다.
+`세부기획서.md` §10의 M8 구간만 읽고, 로그인·소스/키워드 관리·공고 조회 웹 UI를 순서대로
+구현한다. M7의 `sources` 행과 수동 수집 API를 재사용하되, API가 repository를 직접 호출하지
+않는 계층 경계를 유지한다.
 
-## Tried
+## Archive
 
-- **잡알리오 API** `apis.data.go.kr/1051000/recruitment/list`는 키 원문/디코딩 모두
-  `SERVICE_KEY_IS_NOT_REGISTERED_ERROR`(403 코드 30)를 반환했다. 인코딩 문제가 아니라
-  활용신청 또는 반영 상태 문제로 보고 M7에서 재확인한다.
-- **구 워크넷 LINK API**는 XML 오류 코드 `002`, **고용24 채용정보 API**는
-  `GO24/error`(개인회원은 사용할 수 없는 OPEN-API)를 반환했다. 구현하지 않는다.
-- **과기정통부 모집채용 API**는 URL-인코딩 키를 그대로 전달하면 httpx가 `%`를 다시
-  인코딩해 403이 났다. `urllib.parse.unquote()` 후 전달하면 실제 공고를 정상 수집한다.
-- `uv`가 PATH에 없어 개발 명령은 `py -3 -m uv`를 사용한다.
+직전 M6 체크포인트는 `memory/checkpoints/2026-08-22-m6-complete.md`에 보관했다.
