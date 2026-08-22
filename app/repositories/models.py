@@ -1,8 +1,9 @@
 """각 M2 모델에 대응하는 타입 안전한 기본 저장소."""
 
+from collections.abc import Sequence
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -132,10 +133,38 @@ class KeywordRepository(CRUDRepository[Keyword]):
     def __init__(self, session: Session) -> None:
         super().__init__(session, Keyword)
 
+    def list_active(self) -> Sequence[Keyword]:
+        """매칭 대상인 활성 키워드를 안정적인 기본 키 순서로 조회한다."""
+        return self.session.scalars(
+            select(Keyword).where(Keyword.is_active.is_(True)).order_by(Keyword.id)
+        ).all()
+
 
 class JobKeywordMatchRepository(CRUDRepository[JobKeywordMatch]):
     def __init__(self, session: Session) -> None:
         super().__init__(session, JobKeywordMatch)
+
+    def replace_for_posting(
+        self,
+        *,
+        job_posting_id: int,
+        matches: Sequence[tuple[int, str, str, int]],
+    ) -> None:
+        """공고의 이전 매칭을 현재 키워드 판정 근거로 원자적으로 교체한다."""
+        self.session.execute(
+            delete(JobKeywordMatch).where(JobKeywordMatch.job_posting_id == job_posting_id)
+        )
+        self.session.add_all(
+            JobKeywordMatch(
+                job_posting_id=job_posting_id,
+                keyword_id=keyword_id,
+                matched_field=matched_field,
+                matched_snippet=matched_snippet,
+                score=score,
+            )
+            for keyword_id, matched_field, matched_snippet, score in matches
+        )
+        self.session.flush()
 
 
 class CrawlRunRepository(CRUDRepository[CrawlRun]):

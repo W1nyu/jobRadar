@@ -11,6 +11,7 @@ from app.crawlers.base import RawJob
 from app.repositories import JobPostingRepository, JobPostingRevisionRepository, SourceRepository
 from app.services.change_detector import changed_fields
 from app.services.deduplicator import Deduplicator
+from app.services.keyword_matcher import KeywordMatcher
 from app.services.normalizer import normalize
 
 
@@ -22,6 +23,7 @@ class CollectResult:
     items_new: int
     items_updated: int
     items_closed: int
+    items_matched: int
 
 
 class CollectorService:
@@ -33,6 +35,7 @@ class CollectorService:
         self.postings = JobPostingRepository(session)
         self.revisions = JobPostingRevisionRepository(session)
         self.deduplicator = Deduplicator(self.postings)
+        self.keyword_matcher = KeywordMatcher(session)
 
     def collect(
         self, *, source_id: int, raw_jobs: list[RawJob], complete: bool = True
@@ -41,6 +44,7 @@ class CollectorService:
         now = datetime.now(UTC)
         items_new = 0
         items_updated = 0
+        items_matched = 0
         external_ids: set[str] = set()
         fingerprints: set[str] = set()
 
@@ -59,6 +63,10 @@ class CollectorService:
                 deduplicated = self.deduplicator.upsert(job)
                 if deduplicated.is_new:
                     items_new += 1
+                    if self.keyword_matcher.match_and_record(
+                        posting=deduplicated.posting
+                    ).is_matched:
+                        items_matched += 1
                     continue
 
                 posting = deduplicated.posting
@@ -91,4 +99,5 @@ class CollectorService:
             items_new=items_new,
             items_updated=items_updated,
             items_closed=items_closed,
+            items_matched=items_matched,
         )
