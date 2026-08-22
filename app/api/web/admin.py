@@ -433,6 +433,8 @@ def notification_history(request: Request, session: SessionDependency) -> HTMLRe
         {
             "history": NotificationHistoryService(session).get(),
             "kakao_enabled": request.app.state.settings.kakao_enabled,
+            "oauth_status": request.query_params.get("oauth"),
+            "oauth_reason": request.query_params.get("reason"),
         },
     )
 
@@ -472,14 +474,15 @@ def kakao_callback(
     """카카오 인가 코드를 암호화 토큰으로 교환하고 관리 화면으로 돌아간다."""
     require_admin(request)
     expected_state = request.session.pop("kakao_oauth_state", None)
-    if (
-        error
-        or not code
-        or not expected_state
-        or not secrets.compare_digest(expected_state, state or "")
-    ):
+    if error:
         return RedirectResponse(
-            url="/admin/notifications?oauth=failed", status_code=status.HTTP_303_SEE_OTHER
+            url="/admin/notifications?oauth=failed&reason=consent",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    if not code or not expected_state or not secrets.compare_digest(expected_state, state or ""):
+        return RedirectResponse(
+            url="/admin/notifications?oauth=failed&reason=state",
+            status_code=status.HTTP_303_SEE_OTHER,
         )
     settings = request.app.state.settings
     if not settings.kakao_enabled:
@@ -501,7 +504,8 @@ def kakao_callback(
         ).save(token_set)
     except Exception:
         return RedirectResponse(
-            url="/admin/notifications?oauth=failed", status_code=status.HTTP_303_SEE_OTHER
+            url="/admin/notifications?oauth=failed&reason=token_exchange",
+            status_code=status.HTTP_303_SEE_OTHER,
         )
     finally:
         client.close()

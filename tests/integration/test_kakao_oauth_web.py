@@ -101,3 +101,24 @@ def test_카카오_동의_callback은_암호화_토큰을_저장하고_알림화
     assert callback.headers["location"] == "/admin/notifications?oauth=connected"
     assert token is not None
     assert token.access_token_enc != "access-token"
+
+    history = client.get("/admin/notifications?oauth=connected")
+
+    assert "카카오 연결이 완료되었습니다." in history.text
+    assert "카카오 연결됨" in history.text
+
+
+@pytest.mark.integration
+@respx.mock
+def test_토큰_교환_실패는_알림화면에_실패원인을_표시한다(client: TestClient) -> None:
+    authorize = client.get("/admin/kakao/connect")
+    state = parse_qs(urlsplit(authorize.headers["location"]).query)["state"][0]
+    respx.post("https://kauth.kakao.com/oauth/token").mock(
+        return_value=httpx.Response(401, json={"error": "invalid_client"})
+    )
+
+    callback = client.get(f"/oauth/kakao/callback?code=code-value&state={state}")
+
+    assert callback.headers["location"] == (
+        "/admin/notifications?oauth=failed&reason=token_exchange"
+    )

@@ -6,8 +6,15 @@
   <h1>알림 이력</h1>
   <p>새 매칭 공고의 채널별 발송·실패·방해금지 큐잉 상태를 확인합니다.</p>
 </section>
+{% if oauth_status == "connected" %}
+<p class="notice success">카카오 연결이 완료되었습니다.</p>
+{% elif oauth_status == "failed" %}
+<p class="notice error">카카오 연결에 실패했습니다. {% if oauth_reason == "state" %}연결 요청 세션이 만료되었거나 다른 주소로 돌아왔습니다. `localhost`에서 다시 로그인한 뒤 재시도하세요.{% elif oauth_reason == "consent" %}카카오 동의가 완료되지 않았습니다. 필요한 항목에 동의한 뒤 재시도하세요.{% else %}토큰 발급에 실패했습니다. REST API 키·클라이언트 시크릿·Redirect URI 설정을 확인하세요.{% endif %}</p>
+{% endif %}
 {% if history.kakao_reauth_required %}
 <p class="notice error">카카오 재인증이 필요합니다. {{ history.kakao_reauth_error or "" }} {% if kakao_enabled %}<a href="/admin/kakao/connect">카카오 다시 연결</a>{% endif %}</p>
+{% elif history.kakao_connected %}
+<section class="card"><h2>카카오 연결됨</h2><p>카카오톡 나에게 보내기 알림을 사용할 수 있습니다.</p><a class="button-link" href="/admin/kakao/connect">카카오 다시 연결</a></section>
 {% elif kakao_enabled %}
 <section class="card"><h2>카카오 알림</h2><p>카카오톡 나에게 보내기를 연결할 수 있습니다.</p><a class="button-link" href="/admin/kakao/connect">카카오 연결</a></section>
 {% endif %}

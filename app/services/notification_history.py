@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session
 
 from app.models import Notification
-from app.repositories import AppSettingRepository, NotificationRepository
+from app.repositories import AppSettingRepository, NotificationRepository, OAuthTokenRepository
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,6 +16,7 @@ class NotificationHistory:
     """알림 이력 화면에 필요한 목록과 운영 경고 상태."""
 
     notifications: Sequence[Notification]
+    kakao_connected: bool
     kakao_reauth_required: bool
     kakao_reauth_error: str | None
 
@@ -25,6 +26,7 @@ class NotificationHistoryService:
 
     def __init__(self, session: Session) -> None:
         self.notifications = NotificationRepository(session)
+        self.tokens = OAuthTokenRepository(session)
         self.settings = AppSettingRepository(session)
 
     def get(self) -> NotificationHistory:
@@ -33,6 +35,7 @@ class NotificationHistoryService:
         value = reauth.value if reauth else {}
         return NotificationHistory(
             notifications=self.notifications.list_recent(limit=100),
+            kakao_connected=self.tokens.get_by_provider("kakao") is not None,
             kakao_reauth_required=value.get("required") is True,
             kakao_reauth_error=value.get("error") if isinstance(value.get("error"), str) else None,
         )
