@@ -24,7 +24,13 @@ def status_for(settings: Settings, name: str):
 def test_공공데이터포털과_사람인_상태를_모두_보고한다() -> None:
     names = {s.name for s in key_statuses(make_settings())}
 
-    assert names == {"DATA_GO_KR_SERVICE_KEY", "SARAMIN_ACCESS_KEY"}
+    assert names == {
+        "DATA_GO_KR_SERVICE_KEY",
+        "MSIT_RECRUITMENT_SERVICE_KEY",
+        "WORK24_SERVICE_KEY",
+        "ALIO_SERVICE_KEY",
+        "SARAMIN_ACCESS_KEY",
+    }
 
 
 def test_키가_없으면_미설정으로_보고한다() -> None:
@@ -50,5 +56,8 @@ def test_키_값_자체는_노출하지_않는다() -> None:
 
 def test_어느_마일스톤에서_필요한지_알려준다() -> None:
     """지금 비어 있는 게 문제인지 아닌지 판단할 수 있어야 한다."""
-    assert status_for(make_settings(), "DATA_GO_KR_SERVICE_KEY").needed_by == "M3"
+    assert status_for(make_settings(), "DATA_GO_KR_SERVICE_KEY").needed_by == "M7"
+    assert status_for(make_settings(), "MSIT_RECRUITMENT_SERVICE_KEY").needed_by == "M3"
+    assert status_for(make_settings(), "WORK24_SERVICE_KEY").needed_by == "M7"
+    assert status_for(make_settings(), "ALIO_SERVICE_KEY").needed_by == "M7"
     assert status_for(make_settings(), "SARAMIN_ACCESS_KEY").needed_by == "M7"

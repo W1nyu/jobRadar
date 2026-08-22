@@ -8,8 +8,15 @@ M3 이후 `crawl <slug>` 등이 여기에 추가된다.
 import argparse
 import sys
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from app.core.config import Settings, get_settings
+from app.crawlers import CrawlResult, get_crawler
+from app.crawlers.http import HttpClient
+from app.crawlers.sources import build_builtin_source
+
+if TYPE_CHECKING:
+    from app.crawlers.base import CrawlSource
 
 
 @dataclass(frozen=True)
@@ -30,8 +37,26 @@ def key_statuses(settings: Settings) -> list[KeyStatus]:
         KeyStatus(
             name="DATA_GO_KR_SERVICE_KEY",
             configured=settings.data_go_kr_enabled,
+            needed_by="M7",
+            note="공공데이터포털 공용 키 · 잡알리오 등 확장 소스용",
+        ),
+        KeyStatus(
+            name="MSIT_RECRUITMENT_SERVICE_KEY",
+            configured=settings.msit_recruitment_enabled,
             needed_by="M3",
-            note="공공데이터포털 (워크넷·잡알리오) · 자동 승인",
+            note="과기정통부 모집채용 API 전용 키",
+        ),
+        KeyStatus(
+            name="WORK24_SERVICE_KEY",
+            configured=settings.work24_enabled,
+            needed_by="M7",
+            note="고용24 채용정보 API의 authKey · 개인회원 키는 현재 보류",
+        ),
+        KeyStatus(
+            name="ALIO_SERVICE_KEY",
+            configured=settings.alio_enabled,
+            needed_by="M7",
+            note="잡알리오 공공기관 채용정보 · 별도 활용신청",
         ),
         KeyStatus(
             name="SARAMIN_ACCESS_KEY",
@@ -63,15 +88,52 @@ def _force_utf8_stdout() -> None:
             reconfigure(encoding="utf-8")
 
 
+def crawl_once(
+    slug: str, settings: Settings, *, http: HttpClient | object | None = None
+) -> CrawlResult:
+    """M3 소스를 한 번 수집하고, DB와 무관한 RawJob 결과를 반환한다."""
+    source: CrawlSource = build_builtin_source(slug, settings)
+    owns_http = http is None
+    client = http or HttpClient(
+        rate_limit_per_min=source.rate_limit_per_min,
+        user_agent=settings.crawl_user_agent,
+        max_response_bytes=settings.crawl_max_response_bytes,
+    )
+    try:
+        return get_crawler(source, client).run()  # type: ignore[arg-type]
+    finally:
+        if owns_http:
+            client.close()  # type: ignore[union-attr]
+
+
+def _print_crawl_result(result: CrawlResult) -> int:
+    """단발 수집 결과를 사람이 확인할 수 있는 짧은 목록으로 출력한다."""
+    for item in result.items:
+        print(f"- {item.title}\n  {item.url}")
+    print(f"\n수집 결과: {len(result.items)}건 / 페이지 {result.pages_fetched}개")
+    if result.errors:
+        print("오류:", *result.errors, sep="\n- ", file=sys.stderr)
+        return 2
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     _force_utf8_stdout()
     parser = argparse.ArgumentParser(prog="app.cli", description="jobRadar 운영 CLI")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("check-keys", help="외부 API 키 설정 상태를 출력한다")
+    crawl_parser = sub.add_parser("crawl", help="M3 등록 소스를 한 번 수집한다")
+    crawl_parser.add_argument("slug", choices=("datagokr-msit-recruitment", "linkareer"))
 
     args = parser.parse_args(argv)
     if args.command == "check-keys":
         return _print_key_report(get_settings())
+    if args.command == "crawl":
+        try:
+            return _print_crawl_result(crawl_once(args.slug, get_settings()))
+        except (LookupError, ValueError) as error:
+            print(f"수집을 시작할 수 없습니다: {error}", file=sys.stderr)
+            return 2
     return 1
 
 

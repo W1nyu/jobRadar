@@ -10,10 +10,11 @@ Azure VM(2 vCPU / RAM 1GB)에서 24시간 돌릴 **개인용 채용공고 모니
 설계는 `세부기획서.md`(1,400행)에 확정돼 있다. **M0~M12 마일스톤 방식**으로 진행하며,
 각 마일스톤은 검증 가능한 DoD를 만족해야 다음으로 넘어간다.
 
-**현재: M2 완료. M3(첫 크롤러 2종)가 다음이다.**
+**현재: M3 완료. 다음 마일스톤은 M4(신규·중복·변경 탐지)다. 고용24는 개인회원 키로 목록
+API를 쓸 수 없어 M7까지 보류한다.**
 
 - 이전 커밋: `a9ec6bb` (docs), `7b1efb5` (M1) — 브랜치 `main`, 원격 없음
-- 테스트 24개 통과 / ruff check·format 통과 / Python 3.12.14 (배포 대상과 일치)
+- 테스트 40개 통과 / ruff check·format 통과 / Python 3.12.14 (배포 대상과 일치)
 - 앱 기동 확인: `GET /healthz` → `200 {"status":"ok","version":"0.1.0","env":"development"}`
 
 ### M1에서 실제로 만든 것
@@ -49,6 +50,27 @@ tests/integration/test_database.py PostgreSQL UNIQUE·시드·CRUD 통합 테스
 - `python -m app.seed` 후 `keywords` 8건 확인. 기본 `DATABASE_URL`은 Windows Docker의
   IPv6 `localhost` 우선 해석 지연을 피하도록 `127.0.0.1`을 쓴다.
 
+### M3 진행 상황
+
+```
+app/crawlers/base.py             DB-독립 RawJob·RawPage·CrawlResult·BaseCrawler
+app/crawlers/http.py             429/5xx 재시도, 5MB 상한, ETag 조건부 요청, rate limit
+app/crawlers/registry.py         데코레이터 기반 크롤러 레지스트리
+app/crawlers/datagokr_msit.py    공공데이터포털 모집채용 JSON 파서와 오류 응답 처리
+app/crawlers/linkareer.py        SSR JSON-LD ItemList 파서
+app/crawlers/sources.py          M3 단발 CLI용 최소 소스 설정
+docs/sources/                    공공데이터포털·링커리어·고용24 Site Recon 결과
+```
+
+- `python -m app.cli crawl linkareer`는 실제 목록에서 RawJob 20건을 반환했다.
+- 링크어리어 `robots.txt`는 `/list/activity`를 허용하고, 목록은 ETag를 제공한다.
+- 고용24는 `WORK24_SERVICE_KEY` 설정과 조사 문서만 유지한다. 개인회원 키의 실제 응답은
+  `GO24/error`이며, 수집 구현·골든 파일은 M7까지 보류했다.
+- 공공데이터포털 과기정통부 모집채용 API형 크롤러와 실제 성공·403 오류 골든 파일을
+  추가했다. `MSIT_RECRUITMENT_SERVICE_KEY`는 URL 디코딩 후 요청해 이중 인코딩을 피한다.
+- `crawl datagokr-msit-recruitment`는 실제 공고 10건, `crawl linkareer`는 실제 공고 20건을
+  반환했다. M3 DoD 5개를 모두 확인했다.
+
 ## Decided
 
 - **PostgreSQL 채택** — API·워커 두 프로세스가 동시에 쓰므로 SQLite writer lock이 병목.
@@ -69,17 +91,18 @@ tests/integration/test_database.py PostgreSQL UNIQUE·시드·CRUD 통합 테스
 
 ## Waiting on the user
 
-- **공공데이터포털 활용신청 반영 대기** — 키는 `.env`에 설정됐으나 잡알리오 API 호출이
-  `SERVICE_KEY_IS_NOT_REGISTERED_ERROR`(403). 아래 Tried 참조. **M3 착수 전까지 해결 필요**
+- **잡알리오 API 경로·활용신청 재확인 필요** — `ALIO_SERVICE_KEY`는 설정됐으나 이전
+  `apis.data.go.kr/1051000/recruitment/list` 경로에서 403 코드 30을 반환했다. 이 소스는
+  M7에서 별도 크롤러로 추가한다.
 - **사람인 API 승인 대기** — M7까지 되면 된다. 승인 후 `.env`에 `SARAMIN_ACCESS_KEY`만 채우면 켜짐
 - **GitHub 원격 저장소** — 없어서 CI 초록불을 확인하지 못했다. 워크플로 파일은 커밋돼 있음
 - **카카오 앱 / 도메인 / Azure VM** — M9·M11 전까지만 준비되면 된다
 
 ## Next first action
 
-`세부기획서.md` §7과 §10의 M3 구간만 발췌해 읽고, `RawJob`/`CrawlResult`/`BaseCrawler`와
-공식 API형·HTML형 크롤러를 각각 골든 픽스처 테스트부터 만든다. 공공데이터포털 키는 아직
-403이므로, 구현 전 마이페이지에서 잡알리오 API 활용신청 상태를 먼저 확인해야 한다.
+`세부기획서.md` §10의 M4 구간만 발췌해 읽고, `RawJob`을 `JobPostingDTO`로 정규화하는
+`normalizer.py`와 중복·변경 탐지 테스트를 TDD로 시작한다. M3의 소스별 원본 응답·크롤러는
+DB를 모르는 현재 계층 경계를 유지한다.
 
 ## Tried
 
@@ -89,6 +112,18 @@ tests/integration/test_database.py PostgreSQL UNIQUE·시드·CRUD 통합 테스
   Encoding/Decoding 혼동 문제가 **아니다**. 남은 원인은 (a) 이 API를 활용신청하지 않았거나
   (b) 발급/신청 직후라 반영 전(보통 1시간, 최대 1일). 다시 시도하기 전에 마이페이지에서
   **해당 API가 활용신청 목록에 있는지 먼저 확인할 것**
+- **구 워크넷 LINK API(`openapi.work.go.kr/opi/opi/opia/wantedApi.do`) 호출 → HTTP 200,
+  XML 오류 코드 `002`.** `DATA_GO_KR_SERVICE_KEY`를 `authKey`로 전달했으나 유효하지 않았다.
+  고용24 전환에 따라 이 엔드포인트·대체 키 로직은 M3에서 제거했다.
+- **고용24 채용정보 API(`www.work24.go.kr/.../callOpenApiSvcInfo210L01.do`) 호출 → HTTP 200,
+  `GO24/error`: `개인회원은 사용할 수 없는 OPEN-API입니다.`** 현재 `WORK24_SERVICE_KEY`는
+  개인회원 키이거나 채용정보 API 서비스 승인이 연결되지 않은 상태다. M3 구현에서는 제외하고
+  설정·조사만 남긴다.
+- **공공데이터포털 과기정통부 모집채용 API
+  (`apis.data.go.kr/1721000/msitrecruitinfo/recruitList`)에 URL-인코딩 키를 그대로 전달 →
+  HTTP 403, `SERVICE_KEY_IS_NOT_REGISTERED_ERROR`(코드 30).** `httpx`가 `%`를 다시 인코딩한
+  결과다. 전용 키를 `urllib.parse.unquote()`한 뒤 전달하면 HTTP 200과 실제 공고 10건을
+  반환했다. 두 응답 형태를 골든 파일 테스트로 고정했다.
 - **`starlette.testclient` + `httpx`** → `StarletteDeprecationWarning`. Starlette 1.6부터
   `httpx2`를 요구한다. dev 의존성을 `httpx2`로 교체해 해결
 - **ruff format이 `세부기획서.md`를 대상으로 잡음** — ruff 0.16이 마크다운 내 Python 코드

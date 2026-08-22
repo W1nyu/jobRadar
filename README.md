@@ -18,7 +18,7 @@
 | M0 사전 준비 | 진행 중 — [docs/M0-checklist.md](./docs/M0-checklist.md) (외부 키 발급 대기) |
 | M1 프로젝트 기본 환경 | **완료** (CI 초록불은 원격 저장소 생성 후 확인) |
 | M2 PostgreSQL · 데이터 모델 | **완료** |
-| M3 첫 크롤러 2종 | 다음 |
+| M3 첫 크롤러 2종 | **완료** — 공공데이터포털 API + 링크어리어 HTML |
 | M4 ~ M12 | 대기 |
 
 사람인 API는 승인 대기 중이다. 승인 후 `.env`에 `SARAMIN_ACCESS_KEY`를 채우고

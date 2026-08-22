@@ -49,6 +49,29 @@ def test_사람인_키가_빈_문자열이면_비활성으로_본다() -> None:
     assert settings.saramin_enabled is False
 
 
+def test_잡알리오_키가_없어도_기동하고_입력하면_활성화된다() -> None:
+    assert make_settings().alio_enabled is False
+    assert make_settings(ALIO_SERVICE_KEY="alio-key").alio_enabled is True
+
+
+def test_과기정통부_모집채용_키를_별도로_받는다() -> None:
+    assert make_settings().msit_recruitment_enabled is False
+
+    settings = make_settings(MSIT_RECRUITMENT_SERVICE_KEY="msit-key")
+
+    assert settings.msit_recruitment_service_key == "msit-key"
+    assert settings.msit_recruitment_enabled is True
+
+
+def test_고용24_전용_인증키를_선택적으로_받는다() -> None:
+    assert make_settings().work24_enabled is False
+
+    settings = make_settings(WORK24_SERVICE_KEY="work24-key")
+
+    assert settings.work24_service_key == "work24-key"
+    assert settings.work24_enabled is True
+
+
 def test_base_url_끝의_슬래시는_제거된다() -> None:
     """콜백 URL 등을 조립할 때 `//`가 생기는 것을 막는다."""
     settings = make_settings(APP_BASE_URL="https://example.com/")

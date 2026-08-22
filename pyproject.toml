@@ -15,17 +15,14 @@ dependencies = [
     "sqlalchemy>=2.0.36",
     "alembic>=1.14",
     "psycopg[binary]>=3.2",
-]
-
-[project.optional-dependencies]
-# M3에서 활성화 (크롤러)
-crawl = [
     "httpx>=0.28",
     "beautifulsoup4>=4.12",
     "lxml>=5.3",
     "tenacity>=9.0",
     "charset-normalizer>=3.4",
 ]
+
+[project.optional-dependencies]
 # M6에서 활성화 (스케줄러)
 schedule = [
     "apscheduler>=3.11",
@@ -43,6 +40,7 @@ dev = [
     "pytest>=8.3",
     "pytest-cov>=6.0",
     "httpx2>=0.29",      # starlette 1.6+ TestClient가 요구
+    "respx>=0.22",
     "ruff>=0.8",
 ]
 

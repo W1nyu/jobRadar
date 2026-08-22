@@ -51,7 +51,17 @@ class Settings(BaseSettings):
 
     # ---- 외부 API 키 (모두 선택값) ----
     data_go_kr_service_key: str | None = None
+    msit_recruitment_service_key: str | None = None
+    work24_service_key: str | None = None
+    alio_service_key: str | None = None
     saramin_access_key: str | None = None
+
+    # ---- 수집 (M3부터 사용) ----
+    crawl_max_workers: int = 3
+    crawl_max_items_per_run: int = 500
+    crawl_max_pages_per_run: int = 10
+    crawl_max_response_bytes: int = 5 * 1024 * 1024
+    crawl_user_agent: str = "jobRadar/1.0 (personal job monitor; contact@example.com)"
 
     @field_validator("app_base_url")
     @classmethod
@@ -65,8 +75,23 @@ class Settings(BaseSettings):
 
     @property
     def data_go_kr_enabled(self) -> bool:
-        """공공데이터포털 소스 사용 가능 여부 (M3에서 사용)."""
+        """공공데이터포털 공용 소스 사용 가능 여부 (M7에서 사용)."""
         return not _is_blank(self.data_go_kr_service_key)
+
+    @property
+    def msit_recruitment_enabled(self) -> bool:
+        """과기정통부 모집채용 API 키 설정 여부 (M3에서 사용)."""
+        return not _is_blank(self.msit_recruitment_service_key)
+
+    @property
+    def work24_enabled(self) -> bool:
+        """고용24 채용정보 API의 authKey 설정 여부 (M7 이후 사용)."""
+        return not _is_blank(self.work24_service_key)
+
+    @property
+    def alio_enabled(self) -> bool:
+        """잡알리오 소스 사용 가능 여부 (M7에서 사용)."""
+        return not _is_blank(self.alio_service_key)
 
     @property
     def saramin_enabled(self) -> bool:

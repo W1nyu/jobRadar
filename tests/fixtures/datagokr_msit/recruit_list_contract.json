@@ -1,0 +1,55 @@
+{
+  "response": [
+    {
+      "header": {
+        "resultCode": "00",
+        "resultMsg": "NORMAL_CODE"
+      }
+    },
+    {
+      "body": {
+        "pageNo": "1",
+        "totalCount": 1282,
+        "items": [
+          {
+            "item": {
+              "deptName": "운영지원과",
+              "pressDt": "2026-08-20",
+              "subject": "과학기술정보통신부 5급 이하 공무원 일방전입(경력경쟁채용) 모집 공고(기간연장)",
+              "managerTel": "044-202-4145",
+              "viewUrl": "https://www.msit.go.kr/bbs/view.do?sCode=user&mId=125&mPid=121&bbsSeqNo=98&nttSeqNo=3186431",
+              "files": [
+                {
+                  "file": {
+                    "fileName": "과학기술정보통신부 5급 이하 공무원 일방전입(경력경쟁채용) 모집 공고(기간연장)(과기정통부 제2026-0898호).hwpx",
+                    "fileUrl": "https://www.msit.go.kr/ssm/file/fileDown.do?atchFileNo=54826&fileOrd=1"
+                  }
+                }
+              ],
+              "managerName": "하지훈"
+            }
+          },
+          {
+            "item": {
+              "deptName": "운영지원과",
+              "pressDt": "2026-08-18",
+              "subject": "우정사업본부 과장급 공모직위 공개모집",
+              "managerTel": "044-202-4147",
+              "viewUrl": "https://www.msit.go.kr/bbs/view.do?sCode=user&mId=125&mPid=121&bbsSeqNo=98&nttSeqNo=3186430",
+              "files": [
+                {
+                  "file": {
+                    "fileName": "(제2026-110호) 우정사업본부 과장급 공모직위 공개모집 공고문.hwpx",
+                    "fileUrl": "https://www.msit.go.kr/ssm/file/fileDown.do?atchFileNo=54813&fileOrd=1"
+                  }
+                }
+              ],
+              "managerName": "장현수"
+            }
+          }
+        ],
+        "numOfRows": "10"
+      }
+    }
+  ]
+}
