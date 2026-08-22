@@ -155,6 +155,7 @@ class JobPosting(Base):
         JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
     )
     is_open: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    consecutive_missing_runs: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     first_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
