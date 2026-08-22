@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}jobRadar{% endblock %}</title>
+    <link rel="stylesheet" href="/static/admin.css">
+    <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/admin">jobRadar</a>
+      <nav aria-label="관리 메뉴">
+        <a href="/admin/jobs">공고</a>
+        <a href="/admin/sources">소스</a>
+        <a href="/admin/keywords">키워드</a>
+      </nav>
+      <form method="post" action="/logout"><button class="text-button" type="submit">로그아웃</button></form>
+    </header>
+    <main class="container">{% block content %}{% endblock %}</main>
+  </body>
+</html>

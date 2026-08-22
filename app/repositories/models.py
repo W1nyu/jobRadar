@@ -3,9 +3,9 @@
 from collections.abc import Sequence
 from datetime import datetime
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.models import (
     AppSetting,
@@ -74,6 +74,61 @@ class JobPostingRepository(CRUDRepository[JobPosting]):
             select(JobPosting)
             .where(JobPosting.source_id == job.source_id, identity_column == job.identity)
             .with_for_update()
+        )
+
+    def search(
+        self,
+        *,
+        query: str | None,
+        source_id: int | None,
+        matched_only: bool,
+        is_open: bool | None,
+        first_seen_from: datetime | None,
+        first_seen_to: datetime | None,
+        deadline_before: datetime | None,
+        page: int,
+        page_size: int,
+    ) -> tuple[Sequence[JobPosting], int]:
+        """관리 화면의 공고 목록 조건을 한 번의 count·목록 조회로 실행한다."""
+        conditions = []
+        if query:
+            pattern = f"%{query}%"
+            conditions.append(JobPosting.title.ilike(pattern) | JobPosting.company.ilike(pattern))
+        if source_id is not None:
+            conditions.append(JobPosting.source_id == source_id)
+        if matched_only:
+            conditions.append(JobPosting.keyword_matches.any())
+        if is_open is not None:
+            conditions.append(JobPosting.is_open.is_(is_open))
+        if first_seen_from is not None:
+            conditions.append(JobPosting.first_seen_at >= first_seen_from)
+        if first_seen_to is not None:
+            conditions.append(JobPosting.first_seen_at < first_seen_to)
+        if deadline_before is not None:
+            conditions.append(
+                JobPosting.deadline_at.is_not(None), JobPosting.deadline_at <= deadline_before
+            )
+
+        count_statement = select(func.count()).select_from(JobPosting).where(*conditions)
+        statement = (
+            select(JobPosting)
+            .options(joinedload(JobPosting.source))
+            .where(*conditions)
+            .order_by(JobPosting.first_seen_at.desc(), JobPosting.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        return self.session.scalars(statement).all(), int(self.session.scalar(count_statement) or 0)
+
+    def get_for_admin(self, posting_id: int) -> JobPosting | None:
+        """상세 화면에 필요한 소스와 매칭 근거를 함께 읽는다."""
+        return self.session.scalar(
+            select(JobPosting)
+            .options(
+                joinedload(JobPosting.source),
+                selectinload(JobPosting.keyword_matches).joinedload(JobKeywordMatch.keyword),
+            )
+            .where(JobPosting.id == posting_id)
         )
 
     def apply_seen(self, posting: JobPosting, job: JobPostingDTO, *, seen_at: datetime) -> None:
@@ -170,6 +225,44 @@ class JobKeywordMatchRepository(CRUDRepository[JobKeywordMatch]):
 class CrawlRunRepository(CRUDRepository[CrawlRun]):
     def __init__(self, session: Session) -> None:
         super().__init__(session, CrawlRun)
+
+    def latest_for_sources(self, source_ids: Sequence[int]) -> dict[int, CrawlRun]:
+        """소스별 최신 실행 이력을 window 함수로 한 번에 읽는다."""
+        if not source_ids:
+            return {}
+        ranked = (
+            select(
+                CrawlRun.id,
+                CrawlRun.source_id,
+                func.row_number()
+                .over(partition_by=CrawlRun.source_id, order_by=CrawlRun.started_at.desc())
+                .label("rank"),
+            )
+            .where(CrawlRun.source_id.in_(source_ids))
+            .subquery()
+        )
+        runs = self.session.scalars(
+            select(CrawlRun).join(ranked, CrawlRun.id == ranked.c.id).where(ranked.c.rank == 1)
+        ).all()
+        return {run.source_id: run for run in runs}
+
+    def items_fetched_since(self, *, since: datetime) -> dict[int, int]:
+        """대시보드의 최근 24시간 소스별 수집 건수를 집계한다."""
+        rows = self.session.execute(
+            select(CrawlRun.source_id, func.sum(CrawlRun.items_fetched))
+            .where(CrawlRun.started_at >= since)
+            .group_by(CrawlRun.source_id)
+        ).all()
+        return {int(source_id): int(items_fetched or 0) for source_id, items_fetched in rows}
+
+    def list_recent(self, *, limit: int) -> Sequence[CrawlRun]:
+        """최근 실행 이력과 소스명을 대시보드용으로 함께 읽는다."""
+        return self.session.scalars(
+            select(CrawlRun)
+            .options(joinedload(CrawlRun.source))
+            .order_by(CrawlRun.started_at.desc(), CrawlRun.id.desc())
+            .limit(limit)
+        ).all()
 
 
 class NotificationRepository(CRUDRepository[Notification]):

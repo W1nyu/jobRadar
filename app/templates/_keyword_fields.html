@@ -1,0 +1,7 @@
+{% set current = item if item is defined else none %}
+<label>문구<input name="term" value="{{ current.term if current else '' }}" required></label>
+<label>종류<select name="kind">{% for kind in keyword_kinds %}<option value="{{ kind.value }}" {% if current and current.kind == kind %}selected{% endif %}>{{ kind.value }}</option>{% endfor %}</select></label>
+<label>방식<select name="match_mode">{% for mode in match_modes %}<option value="{{ mode.value }}" {% if current and current.match_mode == mode %}selected{% endif %}>{{ mode.value }}</option>{% endfor %}</select></label>
+<fieldset><legend>대상</legend><label class="check"><input type="checkbox" name="target_fields" value="title" {% if not current or 'title' in current.target_fields %}checked{% endif %}> 제목</label><label class="check"><input type="checkbox" name="target_fields" value="description" {% if not current or 'description' in current.target_fields %}checked{% endif %}> 설명</label></fieldset>
+<label>가중치<input type="number" name="weight" min="0" max="100" value="{{ current.weight if current else 1 }}" required></label>
+<label class="check"><input type="checkbox" name="is_active" {% if not current or current.is_active %}checked{% endif %}> 활성</label>

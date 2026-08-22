@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}공고 | jobRadar{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow">POSTINGS</p>
+  <h1>채용공고</h1>
+  <p>제목·회사명 검색, 소스·매칭 여부·등록일·마감 임박 필터를 지원합니다.</p>
+</section>
+
+<section class="card">
+  <form method="get" action="/admin/jobs" class="filter-grid">
+    <label>검색<input name="query" value="{{ filters.query or '' }}" placeholder="제목 또는 회사명"></label>
+    <label>소스<select name="source_id"><option value="">전체</option>{% for source in sources %}<option value="{{ source.id }}" {% if filters.source_id == source.id %}selected{% endif %}>{{ source.name }}</option>{% endfor %}</select></label>
+    <label>공고 상태<select name="open_state"><option value="open" {% if filters.is_open is true %}selected{% endif %}>진행 중</option><option value="closed" {% if filters.is_open is false %}selected{% endif %}>마감</option><option value="all" {% if filters.is_open is none %}selected{% endif %}>전체</option></select></label>
+    <label>최초 확인일 이후<input type="date" name="first_seen_from" value="{{ filters.first_seen_from or '' }}"></label>
+    <label>최초 확인일 이전<input type="date" name="first_seen_to" value="{{ filters.first_seen_to or '' }}"></label>
+    <label class="check"><input type="checkbox" name="matched" value="true" {% if filters.matched_only %}checked{% endif %}> 매칭된 공고만</label>
+    <label class="check"><input type="checkbox" name="deadline_soon" value="true" {% if filters.deadline_soon %}checked{% endif %}> 7일 내 마감</label>
+    <button type="submit">검색</button>
+  </form>
+</section>
+
+<section class="card">
+  <p class="muted">{{ job_page.total }}건 · {{ job_page.page }}/{{ job_page.total_pages }}쪽</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>공고</th><th>회사</th><th>소스</th><th>마감</th><th>상태</th></tr></thead>
+      <tbody>
+      {% for posting in job_page.items %}
+      <tr><td><a href="/admin/jobs/{{ posting.id }}">{{ posting.title }}</a></td><td>{{ posting.company or "-" }}</td><td>{{ posting.source.name }}</td><td>{{ posting.deadline_at or "-" }}</td><td>{{ "진행 중" if posting.is_open else "마감" }}</td></tr>
+      {% else %}<tr><td colspan="5">조건에 맞는 공고가 없습니다.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <nav class="pager" aria-label="공고 페이지">
+    {% if job_page.page > 1 %}<a href="{{ request.url.include_query_params(page=job_page.page - 1) }}">이전</a>{% endif %}
+    {% if job_page.page < job_page.total_pages %}<a href="{{ request.url.include_query_params(page=job_page.page + 1) }}">다음</a>{% endif %}
+  </nav>
+</section>
+{% endblock %}

@@ -43,6 +43,11 @@ class Settings(BaseSettings):
         description="True면 JSON 로그(운영용), False면 사람이 읽는 컬러 로그(개발용)",
     )
 
+    # ---- 관리자 인증 (M8부터 사용) ----
+    admin_username: str = "admin"
+    admin_password_hash: str | None = None
+    admin_session_max_age_seconds: int = 12 * 60 * 60
+
     # ---- 데이터베이스 ----
     # Windows 개발 Docker의 IPv6 localhost 우선 해석으로 인한 연결 지연을 피하려고 IPv4 loopback을 쓴다.
     database_url: str = "postgresql+psycopg://jobradar:jobradar@127.0.0.1:5432/jobradar"
@@ -72,6 +77,11 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"
+
+    @property
+    def admin_auth_enabled(self) -> bool:
+        """관리자 비밀번호 해시가 정상적으로 설정됐는지 반환한다."""
+        return not _is_blank(self.admin_password_hash)
 
     @property
     def data_go_kr_enabled(self) -> bool:

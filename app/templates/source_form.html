@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}{{ "소스 수정" if source else "소스 추가" }} | jobRadar{% endblock %}
+{% block content %}
+<p><a href="/admin/sources">← 소스 목록</a></p>
+<section class="page-heading"><p class="eyebrow">SOURCE</p><h1>{{ "소스 수정" if source else "소스 추가" }}</h1><p>비밀 키는 환경변수에만 저장하며, 이 화면의 JSON 설정에는 넣을 수 없습니다.</p></section>
+{% if error %}<p class="notice error">{{ error }}</p>{% endif %}
+<section class="card"><form method="post" action="{{ '/admin/sources/' ~ source.id if source else '/admin/sources' }}" class="form-grid">
+  {% set current = values if values else source %}
+  <label>slug<input name="slug" value="{{ current.slug if current else '' }}" required></label><label>표시 이름<input name="name" value="{{ current.name if current else '' }}" required></label>
+  <label>크롤러 키<select name="crawler_key">{% for key, strategy in crawler_choices %}<option value="{{ key }}" {% if current and current.crawler_key == key %}selected{% endif %}>{{ key }} ({{ strategy }})</option>{% endfor %}</select></label>
+  <label>기본 주소<input type="url" name="base_url" value="{{ current.base_url if current else '' }}" required></label>
+  <label>수집 방식<select name="fetch_strategy">{% for strategy in fetch_strategies %}<option value="{{ strategy.value }}" {% if current and current.fetch_strategy == strategy %}selected{% endif %}>{{ strategy.value }}</option>{% endfor %}</select></label>
+  <label>수집 주기(분)<input type="number" name="interval_minutes" min="1" max="1440" value="{{ current.interval_minutes if current else 60 }}" required></label>
+  <label>분당 요청 수<input type="number" name="rate_limit_per_min" min="1" max="60" value="{{ current.rate_limit_per_min if current else 30 }}" required></label>
+  <label class="check"><input type="checkbox" name="is_active" {% if not current or current.is_active %}checked{% endif %}> 활성 소스</label>
+  <label class="wide">공개 JSON 설정<textarea name="config_json" rows="8">{{ config_json }}</textarea></label>
+  <button type="submit">저장</button>
+</form></section>
+{% endblock %}

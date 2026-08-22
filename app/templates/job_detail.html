@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ posting.title }} | jobRadar{% endblock %}
+{% block content %}
+<p><a href="/admin/jobs">← 공고 목록</a></p>
+<section class="page-heading">
+  <p class="eyebrow">{{ posting.source.name }}</p>
+  <h1>{{ posting.title }}</h1>
+  <p>{{ posting.company or "회사 정보 없음" }} · {{ posting.location or "지역 정보 없음" }} · {{ "진행 중" if posting.is_open else "마감" }}</p>
+  <p><a href="{{ posting.url }}" target="_blank" rel="noreferrer">원문 공고 열기</a></p>
+</section>
+<section class="card">
+  <h2>키워드 매칭 근거</h2>
+  <ul class="match-list">
+  {% for match in posting.keyword_matches %}
+    <li><strong>{{ match.keyword.term }}</strong> · {{ match.matched_field }} · {{ match.matched_snippet or "일치 구간 없음" }}</li>
+  {% else %}<li>기록된 키워드 매칭이 없습니다.</li>{% endfor %}
+  </ul>
+</section>
+<section class="card"><h2>공고 설명</h2><p class="description">{{ posting.description or "설명이 제공되지 않았습니다." }}</p></section>
+{% endblock %}

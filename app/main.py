@@ -10,11 +10,15 @@
     uvicorn app.main:create_app --factory
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.health import router as health_router
 from app.api.v1.keywords import router as keywords_router
 from app.api.v1.sources import router as sources_router
+from app.api.web.admin import AdminLoginRequired, admin_router, auth_router, login_required_response
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging
 
@@ -34,7 +38,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         openapi_url="/openapi.json" if docs_enabled else None,
     )
     app.state.settings = settings
+    app.mount("/static", StaticFiles(directory="app/static"), name="static")
+    app.add_middleware(
+        SessionMiddleware,
+        secret_key=settings.secret_key,
+        max_age=settings.admin_session_max_age_seconds,
+        same_site="lax",
+        https_only=settings.is_production,
+    )
+
+    @app.exception_handler(AdminLoginRequired)
+    def redirect_unauthenticated_admin(request: Request, _: AdminLoginRequired) -> RedirectResponse:
+        return login_required_response(request)
+
     app.include_router(health_router)
+    app.include_router(auth_router)
+    app.include_router(admin_router)
     app.include_router(keywords_router)
     app.include_router(sources_router)
     return app

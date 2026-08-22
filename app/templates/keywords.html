@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}키워드 | jobRadar{% endblock %}
+{% block content %}
+<section class="page-heading"><p class="eyebrow">KEYWORDS</p><h1>키워드</h1><p>관심·제외 키워드와 매칭 방식을 관리합니다.</p></section>
+{% if error %}<p class="notice error">{{ error }}</p>{% endif %}
+<section class="card"><h2>키워드 추가</h2><form method="post" action="/admin/keywords" class="keyword-form">{% include "_keyword_fields.html" %}<button type="submit">추가</button></form></section>
+<section class="card"><h2>등록된 키워드</h2>{% for keyword in keywords %}<form method="post" action="/admin/keywords/{{ keyword.id }}" class="keyword-form">
+  {% with item=keyword %}{% include "_keyword_fields.html" %}{% endwith %}<button type="submit">저장</button>
+</form><form method="post" action="/admin/keywords/{{ keyword.id }}/delete" class="inline-form" onsubmit="return confirm('이 키워드를 삭제할까요?')"><button class="danger" type="submit">삭제</button></form>{% else %}<p>등록된 키워드가 없습니다.</p>{% endfor %}</section>
+{% endblock %}
