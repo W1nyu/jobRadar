@@ -3,39 +3,43 @@
 ## The story so far
 
 Azure VM(2 vCPU / RAM 1GB)에서 24시간 돌릴 개인용 채용공고 모니터링 서비스다.
-M0~M12 마일스톤 방식으로 진행하며, 현재 **M5(키워드 매칭)까지 완료**했다.
-다음 마일스톤은 M6(스케줄러 자동 수집)다.
+M0~M12 마일스톤 방식으로 진행하며, 현재 **M6(스케줄러 자동 수집)까지 완료**했다.
+다음 마일스톤은 M7(다중 사이트 확장)이다.
 
-- 완료 커밋: `7b1efb5` (M1), `9f8d9b9` (M2), `093a3ca` (M3), `cc80637` (M4)
-- 현재 검증: pytest 59개 통과, `ruff check .` 및 `ruff format --check .` 통과
+- 완료 커밋: `7b1efb5` (M1), `9f8d9b9` (M2), `093a3ca` (M3), `cc80637` (M4), `7fbfd65` (M5)
+- 현재 검증: pytest 69개 통과, `ruff check .` 및 `ruff format --check .` 통과
 - 로컬 PostgreSQL은 `127.0.0.1:5432/jobradar`, Alembic revision `b24a4f6d9c1e` (head)
 
-### M5에서 실제로 만든 것
+### M6에서 실제로 만든 것
 
 ```
-app/services/keyword_matcher.py          순수 include/exclude 판정 + 근거 저장 서비스
-app/services/keywords.py                 키워드 CRUD 트랜잭션 서비스
-app/schemas/keyword.py                   CRUD API 입력/출력·정규식·대상 필드 검증
-app/api/v1/keywords.py                   GET/POST/PATCH/DELETE /api/v1/keywords
-app/repositories/models.py               활성 키워드 조회·공고별 매칭 근거 교체
-app/services/collector.py                신규 공고 저장 직후 키워드 매칭 연결
-tests/unit/test_keyword_matcher.py       substring/word/regex·대상 필드·정렬 순수 테스트
-tests/integration/test_keyword_matcher.py 근거 저장·제외·GIN 계획·수집기 연결 테스트
-tests/integration/test_keywords_api.py   키워드 CRUD API와 입력 검증 테스트
+app/core/locks.py                    PostgreSQL source별 세션 advisory lock
+app/services/crawl_runner.py         락·크롤링·Collector·crawl_runs 실행 서비스
+app/worker/main.py                   APScheduler, 활성 소스 동기화, 하트비트, 워커 엔트리포인트
+app/api/v1/sources.py                POST /api/v1/sources/{id}/crawl 수동 트리거
+app/schemas/crawl.py                 수동 수집 실행 결과 API 계약
+tests/integration/test_advisory_lock.py 물리 세션 종료 뒤 락 해제 검증
+tests/integration/test_crawl_runner.py success/partial/failed/skipped 실행 이력 검증
+tests/integration/test_worker_heartbeat.py app_settings 하트비트 저장 검증
+tests/unit/test_worker_scheduler.py  APScheduler 3사이클·잡 제거 검증
+tests/unit/test_sources_api.py       수동 트리거 API 서비스 위임 검증
 ```
 
-- include 키워드가 하나 이상이고 exclude 키워드가 없을 때만 관심 공고다.
-- `substring`, `word`, `regex` 세 모드를 대소문자 무시로 적용한다. API는 잘못된 regex와
-  title/description 외의 대상 필드를 422로 거절한다. 이미 DB에 잘못 저장된 regex는 한 키워드만
-  건너뛰어 수집 전체를 실패시키지 않는다.
-- 각 키워드는 지정한 첫 매칭 필드와 주변 `matched_snippet`, 가중치를 `job_keyword_matches`에
-  기록한다. exclude 근거도 보존해 UI에서 제외 사유를 확인할 수 있다.
-- 재매칭하면 그 공고의 근거를 현재 활성 키워드 결과로 교체한다. include 결과는 가중치 내림차순,
-  동점이면 키워드 ID 순으로 고정한다.
-- 신규 공고만 `CollectorService`에서 즉시 매칭하고 `items_matched`로 집계한다. 변경·기존 공고의
-  재매칭 정책과 주기 실행은 M6 워커에서 명시적으로 확장한다.
-- M2에서 만든 `ix_job_postings_title_trgm` GIN 인덱스를 유지하고, `EXPLAIN ANALYZE` 테스트로
-  title `ILIKE '%데이터%'`가 해당 인덱스를 타는 것을 확인했다. M5에는 새 마이그레이션이 없다.
+- `apscheduler`를 기본 의존성으로 승격했다. 워커는 `BackgroundScheduler`와
+  `ThreadPoolExecutor(max_workers=3)`으로 활성 소스별 interval 잡을 실행한다.
+- 워커 시작 직후 하트비트를 남기고, 이후 60초마다 `app_settings.worker_heartbeat`를 UTC 시각으로
+  갱신한다. 활성 소스 목록도 60초마다 동기화한다.
+- `CrawlExecutionService`는 전용 PostgreSQL 연결에서 `pg_try_advisory_lock`을 잡는다. 이미
+  실행 중이면 크롤러를 호출하지 않고 `crawl_runs.status=skipped`만 남긴다.
+- SQLAlchemy 풀에서 논리적 `connection.close()`만으로는 DB 세션 락이 해제되지 않으므로, 정상
+  경로에서는 반드시 `pg_advisory_unlock`을 호출한다. 워커 강제 종료는 PostgreSQL 물리 연결
+  종료로 자동 해제된다.
+- running 실행 이력은 네트워크 호출 전에 commit한다. 결과·공고 저장·실행 요약은 하나의 후속
+  트랜잭션에 commit하며, 예외는 failed, 부분 응답은 partial로 전환한다.
+- 비활성 소스는 스케줄 잡 동기화에서 제거하며, 이미 등록된 잡이 실행돼도 runner가 다시 확인해
+  크롤러를 호출하지 않는다.
+- `POST /api/v1/sources/{id}/crawl`는 같은 실행 서비스를 manual trigger로 호출한다. 현재 M8
+  소스 관리 UI 전에는 DB에 구성된 활성 소스를 대상으로 사용한다.
 
 ### 이전 마일스톤 핵심 상태
 
@@ -43,15 +47,18 @@ tests/integration/test_keywords_api.py   키워드 CRUD API와 입력 검증 테
 - M2: PostgreSQL 10개 테이블, pg_trgm, Alembic, 기본 CRUD와 키워드 시드.
 - M3: 공공데이터포털 과기정통부 API와 링크어리어 HTML 크롤러가 DB 독립적으로 `RawJob`을 반환.
 - M4: DTO 정규화, ON CONFLICT 중복 방지, 변경 이력, 3회 미관측 종료.
+- M5: include/exclude 키워드, 근거 저장, 키워드 CRUD API.
 
 ## Decided
 
-- **동기 구조** — 사용자 1명·소스 10개 미만에서는 async가 불필요하다. 병렬은 M6에서
+- **동기 구조** — 사용자 1명·소스 10개 미만에서는 async가 불필요하다. 병렬은 worker의
   `ThreadPoolExecutor(max_workers=3)`만 사용한다.
-- **계층 경계** — API는 `KeywordService`만 호출하고, 서비스가 저장소를 조합한다. 크롤러는
-  `RawJob`까지만 알고 DB를 모르며, 저장소는 commit하지 않는다.
-- **키워드 근거 보존** — exclude를 포함한 모든 매칭을 저장해야 키워드 튜닝과 M8 UI에서
-  "왜 제외됐는지"를 확인할 수 있다.
+- **실행 이력 우선 commit** — 크롤러/파서가 프로세스를 중단시켜도 `running` 시작 사실을 남겨
+  운영자가 원인을 추적할 수 있게 한다.
+- **세션 advisory lock** — API와 worker의 수동/자동 실행 모두 같은 DB 락을 사용한다. Redis 등
+  별도 인프라 없이 중복 수집을 막고, 프로세스 종료 시 자동 복구된다.
+- **계층 경계** — API는 실행 서비스만 호출하고, service가 repository·Collector를 조합한다.
+  크롤러는 여전히 `RawJob`까지만 알고 DB를 모른다.
 - **고용24 보류** — 현재 `WORK24_SERVICE_KEY`는 개인회원 키라 채용정보 목록을 이용할 수 없어,
   구현은 M7까지 보류한다.
 
@@ -66,14 +73,14 @@ tests/integration/test_keywords_api.py   키워드 CRUD API와 입력 검증 테
 
 ## Next first action
 
-`세부기획서.md` §10의 M6 구간만 읽고, APScheduler 워커·`crawl_runs`·advisory lock·
-수동 수집 API·하트비트를 TDD로 구현한다. M7 소스 확장과 M8 UI는 아직 만들지 않는다.
+`세부기획서.md` §10의 M7 구간만 읽고, 인디스워크 403 원인 재조사부터 시작한다. 이어서
+공식/허용된 소스만 추가하고, 새 소스가 `crawler.py`·픽스처·설정만으로 확장됨을 검증한다.
 
 ## Tried
 
 - **잡알리오 API** `apis.data.go.kr/1051000/recruitment/list`는 키 원문/디코딩 모두
   `SERVICE_KEY_IS_NOT_REGISTERED_ERROR`(403 코드 30)를 반환했다. 인코딩 문제가 아니라
-  활용신청 또는 반영 상태 문제로 보고 M7까지 보류한다.
+  활용신청 또는 반영 상태 문제로 보고 M7에서 재확인한다.
 - **구 워크넷 LINK API**는 XML 오류 코드 `002`, **고용24 채용정보 API**는
   `GO24/error`(개인회원은 사용할 수 없는 OPEN-API)를 반환했다. 구현하지 않는다.
 - **과기정통부 모집채용 API**는 URL-인코딩 키를 그대로 전달하면 httpx가 `%`를 다시

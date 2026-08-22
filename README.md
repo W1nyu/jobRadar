@@ -21,7 +21,8 @@
 | M3 첫 크롤러 2종 | **완료** — 공공데이터포털 API + 링크어리어 HTML |
 | M4 신규 · 중복 · 변경 탐지 | **완료** — 정규화·UPSERT·변경 이력·3회 미노출 종료 |
 | M5 키워드 매칭 | **완료** — include/exclude·매칭 근거·키워드 CRUD API |
-| M6 ~ M12 | 대기 |
+| M6 스케줄러 자동 수집 | **완료** — APScheduler·실행 이력·advisory lock·하트비트 |
+| M7 ~ M12 | 대기 |
 
 사람인 API는 승인 대기 중이다. 승인 후 `.env`에 `SARAMIN_ACCESS_KEY`를 채우고
 `uv run python -m app.cli check-keys`로 인식 여부를 확인하면 된다 — 코드 변경은 필요 없다.

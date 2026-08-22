@@ -529,6 +529,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },
+    { name = "apscheduler" },
     { name = "beautifulsoup4" },
     { name = "charset-normalizer" },
     { name = "fastapi" },
@@ -552,9 +553,6 @@ notify = [
     { name = "itsdangerous" },
     { name = "pywebpush" },
 ]
-schedule = [
-    { name = "apscheduler" },
-]
 
 [package.dev-dependencies]
 dev = [
@@ -568,7 +566,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = ">=1.14" },
-    { name = "apscheduler", marker = "extra == 'schedule'", specifier = ">=3.11" },
+    { name = "apscheduler", specifier = ">=3.11" },
     { name = "argon2-cffi", marker = "extra == 'notify'", specifier = ">=23.1" },
     { name = "beautifulsoup4", specifier = ">=4.12" },
     { name = "charset-normalizer", specifier = ">=3.4" },
@@ -588,7 +586,7 @@ requires-dist = [
     { name = "tenacity", specifier = ">=9.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
 ]
-provides-extras = ["schedule", "notify"]
+provides-extras = ["notify"]
 
 [package.metadata.requires-dev]
 dev = [
