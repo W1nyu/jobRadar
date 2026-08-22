@@ -14,7 +14,10 @@ from app.models import (
     JobPosting,
     JobPostingRevision,
     Keyword,
+    KeywordKind,
     Notification,
+    NotificationChannel,
+    NotificationStatus,
     OAuthToken,
     PushSubscription,
     Source,
@@ -130,6 +133,52 @@ class JobPostingRepository(CRUDRepository[JobPosting]):
             )
             .where(JobPosting.id == posting_id)
         )
+
+    def list_notification_candidates(
+        self, *, channel: NotificationChannel, since: datetime
+    ) -> Sequence[JobPosting]:
+        """아직 해당 채널로 보내지 않은 신규 관심 공고만 조회한다."""
+        include_match = (
+            select(JobKeywordMatch.id)
+            .join(Keyword, JobKeywordMatch.keyword_id == Keyword.id)
+            .where(
+                JobKeywordMatch.job_posting_id == JobPosting.id,
+                Keyword.kind == KeywordKind.INCLUDE,
+            )
+            .exists()
+        )
+        exclude_match = (
+            select(JobKeywordMatch.id)
+            .join(Keyword, JobKeywordMatch.keyword_id == Keyword.id)
+            .where(
+                JobKeywordMatch.job_posting_id == JobPosting.id,
+                Keyword.kind == KeywordKind.EXCLUDE,
+            )
+            .exists()
+        )
+        already_notified = (
+            select(Notification.id)
+            .where(
+                Notification.job_posting_id == JobPosting.id,
+                Notification.channel == channel,
+            )
+            .exists()
+        )
+        return self.session.scalars(
+            select(JobPosting)
+            .options(
+                joinedload(JobPosting.source),
+                selectinload(JobPosting.keyword_matches).joinedload(JobKeywordMatch.keyword),
+            )
+            .where(
+                JobPosting.first_seen_at >= since,
+                JobPosting.is_open.is_(True),
+                include_match,
+                ~exclude_match,
+                ~already_notified,
+            )
+            .order_by(JobPosting.first_seen_at, JobPosting.id)
+        ).all()
 
     def apply_seen(self, posting: JobPosting, job: JobPostingDTO, *, seen_at: datetime) -> None:
         """현재 응답의 저장 값과 관측 상태를 기존 공고에 반영한다."""
@@ -269,15 +318,54 @@ class NotificationRepository(CRUDRepository[Notification]):
     def __init__(self, session: Session) -> None:
         super().__init__(session, Notification)
 
+    def list_due(self, *, channel: NotificationChannel, now: datetime) -> Sequence[Notification]:
+        """방해금지 종료 후 전송할 pending 이력을 오래된 순으로 읽는다."""
+        return self.session.scalars(
+            select(Notification)
+            .where(
+                Notification.channel == channel,
+                Notification.status == NotificationStatus.PENDING,
+                (Notification.scheduled_at.is_(None)) | (Notification.scheduled_at <= now),
+            )
+            .order_by(Notification.id)
+        ).all()
+
+    def list_recent(self, *, limit: int) -> Sequence[Notification]:
+        """관리 화면용 최근 알림 이력과 공고·소스 정보를 함께 조회한다."""
+        return self.session.scalars(
+            select(Notification)
+            .options(joinedload(Notification.job_posting).joinedload(JobPosting.source))
+            .order_by(Notification.id.desc())
+            .limit(limit)
+        ).all()
+
 
 class PushSubscriptionRepository(CRUDRepository[PushSubscription]):
     def __init__(self, session: Session) -> None:
         super().__init__(session, PushSubscription)
 
+    def get_by_endpoint(self, endpoint: str) -> PushSubscription | None:
+        """중복 구독 갱신에 사용할 endpoint 고유 행을 찾는다."""
+        return self.session.scalar(
+            select(PushSubscription).where(PushSubscription.endpoint == endpoint)
+        )
+
+    def list_active(self) -> Sequence[PushSubscription]:
+        """실제 전송 대상으로 남아 있는 브라우저 구독만 조회한다."""
+        return self.session.scalars(
+            select(PushSubscription)
+            .where(PushSubscription.is_active.is_(True))
+            .order_by(PushSubscription.id)
+        ).all()
+
 
 class OAuthTokenRepository(CRUDRepository[OAuthToken]):
     def __init__(self, session: Session) -> None:
         super().__init__(session, OAuthToken)
+
+    def get_by_provider(self, provider: str) -> OAuthToken | None:
+        """공급자별 한 개만 보관하는 암호화 OAuth 토큰을 조회한다."""
+        return self.session.scalar(select(OAuthToken).where(OAuthToken.provider == provider))
 
 
 class AppSettingRepository(CRUDRepository[AppSetting]):

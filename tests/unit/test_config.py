@@ -97,3 +97,22 @@ def test_데이터베이스_연결과_풀_설정을_환경변수로_받는다() 
     assert settings.database_url == "postgresql+psycopg://test:test@localhost:5432/jobradar_test"
     assert settings.db_pool_size == 3
     assert settings.db_max_overflow == 1
+
+
+def test_web_push와_카카오_설정은_필수값이_모였을때만_활성화된다() -> None:
+    assert make_settings().vapid_enabled is False
+    assert make_settings().kakao_enabled is False
+
+    vapid = make_settings(
+        VAPID_PUBLIC_KEY="public",
+        VAPID_PRIVATE_KEY="private",
+        VAPID_SUBJECT="mailto:admin@example.com",
+    )
+    kakao = make_settings(
+        FERNET_KEY="fernet-key",
+        KAKAO_REST_API_KEY="rest-key",
+        KAKAO_REDIRECT_URI="https://example.com/oauth/kakao/callback",
+    )
+
+    assert vapid.vapid_enabled is True
+    assert kakao.kakao_enabled is True

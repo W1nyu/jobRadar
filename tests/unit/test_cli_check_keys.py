@@ -1,10 +1,12 @@
-"""외부 API 키 설정 상태 점검 동작 검증.
+"""외부 API 키 설정 상태 점검과 M9 키 생성 동작 검증.
 
 사람인 API는 승인 대기 중이다. 승인이 난 뒤 `.env`에 키를 넣었을 때
 "정말 인식됐는지"를 앱을 띄우지 않고 확인할 수단이 필요하다.
 """
 
-from app.cli import key_statuses
+from base64 import urlsafe_b64decode
+
+from app.cli import generate_fernet_key, generate_vapid_keys, key_statuses
 from app.core.config import Settings
 
 
@@ -61,3 +63,16 @@ def test_어느_마일스톤에서_필요한지_알려준다() -> None:
     assert status_for(make_settings(), "WORK24_SERVICE_KEY").needed_by == "M7"
     assert status_for(make_settings(), "ALIO_SERVICE_KEY").needed_by == "M7"
     assert status_for(make_settings(), "SARAMIN_ACCESS_KEY").needed_by == "M7"
+
+
+def test_vapid_키생성은_urlsafe_공개키와_비밀키를_반환한다() -> None:
+    public_key, private_key = generate_vapid_keys()
+
+    assert len(urlsafe_b64decode(public_key + "=" * (-len(public_key) % 4))) == 65
+    assert len(urlsafe_b64decode(private_key + "=" * (-len(private_key) % 4))) == 32
+
+
+def test_fernet_키생성은_정확한_base64_길이를_반환한다() -> None:
+    key = generate_fernet_key()
+
+    assert len(urlsafe_b64decode(key)) == 32

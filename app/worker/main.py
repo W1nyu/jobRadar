@@ -6,6 +6,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from threading import Event
+from zoneinfo import ZoneInfo
 
 from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -19,6 +20,7 @@ from app.crawlers.sources import with_runtime_credentials
 from app.models import CrawlTrigger, Source
 from app.repositories import AppSettingRepository
 from app.services.crawl_runner import CrawlExecutionService, crawl_registered_source
+from app.services.notification_runtime import NotificationRuntime
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,12 +49,18 @@ class WorkerScheduler:
         source_loader: Callable[[], Sequence[ScheduledSource]],
         heartbeat: Callable[[], None],
         max_workers: int,
+        dispatch_notifications: Callable[[], None] | None = None,
+        refresh_kakao_tokens: Callable[[], None] | None = None,
+        timezone: str = "Asia/Seoul",
     ) -> None:
         if max_workers < 1:
             raise ValueError("max_workers는 1 이상이어야 합니다.")
         self.runner = runner
         self.source_loader = source_loader
         self.heartbeat = heartbeat
+        self.dispatch_notifications = dispatch_notifications
+        self.refresh_kakao_tokens = refresh_kakao_tokens
+        self.timezone = timezone
         self.scheduler = BackgroundScheduler(
             executors={"default": ThreadPoolExecutor(max_workers=max_workers)},
             job_defaults={"coalesce": True, "max_instances": 1},
@@ -70,6 +78,26 @@ class WorkerScheduler:
             replace_existing=True,
             coalesce=True,
         )
+        if self.dispatch_notifications is not None:
+            self.scheduler.add_job(
+                self.dispatch_notifications,
+                trigger="interval",
+                seconds=60,
+                id="notification-dispatch",
+                replace_existing=True,
+                coalesce=True,
+            )
+        if self.refresh_kakao_tokens is not None:
+            self.scheduler.add_job(
+                self.refresh_kakao_tokens,
+                trigger="cron",
+                hour=4,
+                minute=0,
+                timezone=ZoneInfo(self.timezone),
+                id="kakao-token-refresh",
+                replace_existing=True,
+                coalesce=True,
+            )
         self.scheduler.add_job(
             self.heartbeat,
             trigger="interval",
@@ -153,11 +181,24 @@ def build_worker(settings: Settings | None = None) -> WorkerScheduler:
             max_response_bytes=settings.crawl_max_response_bytes,
         ),
     )
+    notifications = NotificationRuntime(settings)
+
+    def dispatch_notifications() -> None:
+        with SessionLocal() as session:
+            notifications.dispatch(session)
+
+    def refresh_kakao_tokens() -> None:
+        with SessionLocal() as session:
+            notifications.refresh_kakao_tokens(session)
+
     return WorkerScheduler(
         runner=runner,
         source_loader=lambda: load_active_sources(SessionLocal),
         heartbeat=lambda: record_worker_heartbeat(SessionLocal),
         max_workers=settings.crawl_max_workers,
+        dispatch_notifications=dispatch_notifications,
+        refresh_kakao_tokens=refresh_kakao_tokens,
+        timezone=settings.timezone,
     )
 
 

@@ -200,6 +200,7 @@ def test_소스와_키워드는_관리_화면에서_수정하고_삭제할_수_�
 
     assert client.get("/admin/sources").status_code == 200
     assert client.get("/admin/keywords").status_code == 200
+    assert client.get("/admin/notifications").status_code == 200
 
     source_update = client.post(
         f"/admin/sources/{source.id}",

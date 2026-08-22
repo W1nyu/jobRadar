@@ -86,6 +86,8 @@ class DashboardSnapshot:
     recent_runs: Sequence[CrawlRun]
     worker_heartbeat_at: datetime | None
     worker_is_stale: bool
+    kakao_reauth_required: bool
+    kakao_reauth_error: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,6 +158,8 @@ class DashboardService:
         latest_runs = self.runs.latest_for_sources([source.id for source in sources])
         fetched_24h = self.runs.items_fetched_since(since=now - timedelta(hours=24))
         heartbeat = self.settings.get("worker_heartbeat")
+        kakao_reauth = self.settings.get("kakao_reauth")
+        kakao_value = kakao_reauth.value if kakao_reauth else {}
         heartbeat_at = _heartbeat_at(heartbeat.value if heartbeat else None)
         return DashboardSnapshot(
             sources=[
@@ -169,6 +173,10 @@ class DashboardService:
             recent_runs=self.runs.list_recent(limit=15),
             worker_heartbeat_at=heartbeat_at,
             worker_is_stale=(heartbeat_at is None or now - heartbeat_at > WORKER_HEARTBEAT_MAX_AGE),
+            kakao_reauth_required=kakao_value.get("required") is True,
+            kakao_reauth_error=(
+                kakao_value.get("error") if isinstance(kakao_value.get("error"), str) else None
+            ),
         )
 
 

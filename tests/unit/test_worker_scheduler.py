@@ -81,3 +81,25 @@ def test_네개_이상의_활성_소스를_각각_스케줄_잡으로_등록한�
         worker.shutdown()
 
     assert registered_ids == {"1", "2", "3", "4", "5"}
+
+
+def test_알림_디스패치와_카카오_토큰_갱신도_워커_잡으로_등록한다() -> None:
+    worker = WorkerScheduler(
+        runner=RecordingRunner(),
+        source_loader=lambda: [],
+        heartbeat=lambda: None,
+        max_workers=1,
+        dispatch_notifications=lambda: None,
+        refresh_kakao_tokens=lambda: None,
+    )
+
+    worker.start()
+    try:
+        job_ids = {job.id for job in worker.scheduler.get_jobs()}
+        refresh_timezone = str(worker.scheduler.get_job("kakao-token-refresh").trigger.timezone)
+    finally:
+        worker.shutdown()
+
+    assert "notification-dispatch" in job_ids
+    assert "kakao-token-refresh" in job_ids
+    assert refresh_timezone == "Asia/Seoul"

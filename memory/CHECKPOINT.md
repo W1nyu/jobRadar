@@ -4,12 +4,12 @@
 
 Azure VM(2 vCPU / RAM 1GB)에서 24시간 돌릴 개인용 채용공고 모니터링 서비스다.
 M0~M12 마일스톤 방식으로 진행하며, 현재 **M8(웹 관리 UI)까지 완료**했다.
-다음 마일스톤은 M9(알림)이다.
+M9(알림)는 코드·자동 테스트를 구현했고, 실제 Web Push·카카오 수신 DoD는 외부 설정 입력을 기다린다.
 
 - 완료 커밋: `7b1efb5` (M1), `9f8d9b9` (M2), `093a3ca` (M3), `cc80637` (M4),
   `7fbfd65` (M5), `e8c0df9` (M6), `56ede96` (M7)
-- 현재 검증: pytest **84개 통과**, `ruff check .` 및 `ruff format --check .` 통과
-- 로컬 PostgreSQL은 `127.0.0.1:5432/jobradar`, Alembic revision `b24a4f6d9c1e` (head)
+- 현재 검증: pytest **102개 통과**, `ruff check .` 및 `ruff format --check .` 통과
+- 로컬 PostgreSQL은 `127.0.0.1:5432/jobradar`, Alembic revision `d5c91f86a4b2` (head)
 
 ### M8에서 실제로 만든 것
 
@@ -35,6 +35,26 @@ tests/integration/test_admin_web.py DB 연동 UI 계약
 - 대시보드는 마지막 성공 시각·연속 실패·최근 24시간 수집 건수·최근 실행 오류를 보이며,
   `worker_heartbeat`가 15분을 넘기면 경고 배너를 표시한다.
 
+### M9에서 구현한 것 (외부 수신 검증 대기)
+
+```
+app/notifications/                  DB를 모르는 Web Push·카카오 채널 계약
+app/services/dispatcher.py          배치·중복 방지·방해금지·재시도 디스패처
+app/services/kakao.py               OAuth 교환·Fernet 암호화·매일/발송 직전 토큰 갱신
+app/services/notification_runtime.py 워커용 실제 채널 조립·카카오 실패 Web Push 폴백
+app/api/v1/push.py                  로그인 관리자 브라우저 구독 API
+app/static/sw.js, push.js           Push 표시·클릭 공고 이동·구독 UI 동작
+alembic/versions/d5c91f86a4b2...    OAuth 토큰 갱신 오류 보존 컬럼
+```
+
+- Web Push는 `POST /api/v1/push/subscribe`로 endpoint 키를 등록하고 404/410은 즉시 비활성화한다.
+  그 밖의 실패는 5회 누적 시 비활성화한다.
+- 워커는 매분 신규 매칭을 채널별 한 번의 배치로 발송한다. `notifications`의
+  `(job_posting_id, channel)` 유일성 제약을 활용해 연속 실행에도 같은 공고를 중복 발송하지 않는다.
+- 방해금지 시간(기본 KST 23:00~08:00)에는 `scheduled_at`으로 큐잉하며, 이후 한 배치로 발송한다.
+- 카카오 access/refresh token은 Fernet으로 암호화해 저장한다. refresh 실패 시 오류를 DB와 UI에
+  남기고, 가능한 경우 Web Push로 재인증 안내를 한 번 보낸다.
+
 ## Decided
 
 - **웹 라우터도 서비스 계층만 호출** — 공고 조회, 대시보드, 소스 변경은 `app.services.admin`으로
@@ -43,11 +63,17 @@ tests/integration/test_admin_web.py DB 연동 UI 계약
   `service_key`, `access_key` 계열 키를 거절한다. API 키는 계속 `.env`에서 실행 시점에만 주입한다.
 - **세션은 Starlette 서명 쿠키** — 단일 사용자 서비스에는 별도 사용자 테이블·세션 저장소가 필요 없고,
   1GB VM의 상주 메모리와 운영 복잡도를 늘리지 않는다.
+- **M9 채널은 DB를 모른다** — Web Push·카카오 구현은 페이로드를 받아 `SendResult`만 반환한다.
+  이력 생성, 재시도, 구독 비활성화는 dispatcher/runtime 서비스가 맡아 채널 단위 HTTP 모킹 테스트가 가능하다.
 
 ## Waiting on the user
 
 - **관리자 비밀번호 해시** — 실제 `/admin` 사용 전 `.env`에 `ADMIN_PASSWORD_HASH`를 설정한다.
   생성 명령은 README의 “관리자 로그인 (M8)” 절에 있다.
+- **VAPID 키와 HTTPS** — `generate-vapid` 출력값과 메일 subject를 `.env`에 넣고, HTTPS로 `/admin`에서
+  브라우저 알림을 연결해야 실제 Web Push DoD를 검증할 수 있다.
+- **카카오 앱 설정** — Fernet 키, REST API 키, Redirect URI, 필요 시 Client Secret을 `.env`에 넣고
+  Kakao Developers에 `talk_message` 동의와 Redirect URI를 등록해야 카카오 DoD를 검증할 수 있다.
 - **사람인 API 승인 및 `SARAMIN_ACCESS_KEY`** — 승인 뒤 실제 성공 응답을 확보하면 추가 소스 작업을
   재개한다.
 - **GitHub 원격 저장소** — 아직 없어 CI 원격 초록불은 확인하지 못했다.
@@ -55,8 +81,9 @@ tests/integration/test_admin_web.py DB 연동 UI 계약
 
 ## Next first action
 
-`세부기획서.md` §10의 M9 구간만 읽고 Web Push 발송부터 구현한다. 카카오 OAuth와 알림 이력 UI는
-Web Push가 새 매칭 공고에서 실제 도착하는 DoD를 만족한 다음 추가한다.
+README의 “알림 설정 (M9)”에 따라 VAPID와 카카오 설정을 채운 뒤, HTTPS `/admin`에서 브라우저
+구독·새 매칭 공고 수신·카카오 나에게 보내기·재인증 Web Push 폴백을 실제로 확인한다. 이 외부 DoD가
+통과하기 전에는 M10으로 넘어가지 않는다.
 
 ## Archive
 

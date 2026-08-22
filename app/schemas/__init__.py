@@ -3,6 +3,7 @@
 from app.schemas.crawl import CrawlExecutionResponse
 from app.schemas.job_posting import JobPostingDTO
 from app.schemas.keyword import KeywordCreate, KeywordResponse, KeywordUpdate
+from app.schemas.push import PushSubscriptionCreate
 
 __all__ = [
     "CrawlExecutionResponse",
@@ -10,4 +11,5 @@ __all__ = [
     "KeywordCreate",
     "KeywordResponse",
     "KeywordUpdate",
+    "PushSubscriptionCreate",
 ]

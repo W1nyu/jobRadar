@@ -1,0 +1,99 @@
+"""M9 관리자 브라우저 Web Push 구독 API의 DB 계약."""
+
+from __future__ import annotations
+
+from collections.abc import Generator
+
+import pytest
+from argon2 import PasswordHasher
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, select, text
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import Session
+
+from app.core.config import Settings
+from app.core.db import get_db
+from app.main import create_app
+from app.models import PushSubscription
+from tests.integration.test_database import TEST_DATABASE_URL
+
+
+@pytest.fixture
+def db_session() -> Generator[Session, None, None]:
+    engine = create_engine(TEST_DATABASE_URL)
+    try:
+        with engine.connect() as connection:
+            migrated = connection.execute(
+                text("SELECT to_regclass('public.push_subscriptions')")
+            ).scalar()
+    except OperationalError:
+        pytest.skip("로컬 PostgreSQL이 준비되지 않았습니다. M2 DB를 먼저 기동하세요.")
+    if migrated is None:
+        pytest.skip("M2 마이그레이션이 적용되지 않았습니다. alembic upgrade head를 실행하세요.")
+
+    connection = engine.connect()
+    transaction = connection.begin()
+    session = Session(bind=connection, join_transaction_mode="create_savepoint")
+    try:
+        yield session
+    finally:
+        session.close()
+        transaction.rollback()
+        connection.close()
+        engine.dispose()
+
+
+@pytest.fixture
+def client(db_session: Session) -> Generator[TestClient, None, None]:
+    settings = Settings(
+        _env_file=None,
+        APP_BASE_URL="https://example.com",
+        SECRET_KEY="test-secret",
+        ADMIN_USERNAME="admin",
+        ADMIN_PASSWORD_HASH=PasswordHasher().hash("correct-password"),
+        VAPID_PUBLIC_KEY="test-public-key",
+        VAPID_PRIVATE_KEY="test-private-key",
+        VAPID_SUBJECT="mailto:admin@example.com",
+    )
+    app = create_app(settings=settings)
+
+    def override_get_db() -> Generator[Session, None, None]:
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app, follow_redirects=False) as test_client:
+        login = test_client.post(
+            "/login", data={"username": "admin", "password": "correct-password"}
+        )
+        assert login.status_code == 303
+        yield test_client
+
+
+@pytest.mark.integration
+def test_로그인한_관리자는_web_push_구독을_등록하고_갱신할_수_있다(
+    client: TestClient, db_session: Session
+) -> None:
+    first = client.post(
+        "/api/v1/push/subscribe",
+        json={
+            "endpoint": "https://push.example/subscription/1",
+            "keys": {"p256dh": "first-key", "auth": "first-auth"},
+        },
+    )
+    second = client.post(
+        "/api/v1/push/subscribe",
+        json={
+            "endpoint": "https://push.example/subscription/1",
+            "keys": {"p256dh": "rotated-key", "auth": "rotated-auth"},
+        },
+    )
+
+    subscription = db_session.scalar(
+        text("SELECT p256dh FROM push_subscriptions WHERE endpoint = :endpoint"),
+        {"endpoint": "https://push.example/subscription/1"},
+    )
+    assert first.status_code == 201
+    assert second.status_code == 200
+    assert subscription == "rotated-key"
+    assert client.get("/api/v1/push/public-key").json() == {"public_key": "test-public-key"}
+    assert db_session.scalar(select(PushSubscription)) is not None

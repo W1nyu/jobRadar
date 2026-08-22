@@ -24,14 +24,12 @@ dependencies = [
     "argon2-cffi>=23.1",
     "itsdangerous>=2.2",
     "python-multipart>=0.0.20",
-]
-
-[project.optional-dependencies]
-# M8/M9에서 활성화 (인증 · 알림)
-notify = [
     "cryptography>=44.0",
     "pywebpush>=2.0",
 ]
+
+[project.optional-dependencies]
+# 현재 선택 의존성 없음. 추후 운영 도구가 추가되면 여기에 분리한다.
 
 [dependency-groups]
 dev = [

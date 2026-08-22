@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import secrets
 from pathlib import Path
 from typing import Annotated
 from urllib.parse import unquote, urlencode, urlsplit
@@ -29,7 +30,9 @@ from app.services.admin import (
 )
 from app.services.admin_auth import AdminAuthService
 from app.services.crawl_runner import SourceNotFoundError
+from app.services.kakao import EncryptedTokenCipher, KakaoOAuthClient, KakaoTokenService
 from app.services.keywords import KeywordConflictError, KeywordNotFoundError, KeywordService
+from app.services.notification_history import NotificationHistoryService
 
 templates = Jinja2Templates(directory=str(Path(__file__).parents[2] / "templates"))
 auth_router = APIRouter()
@@ -128,7 +131,10 @@ def dashboard(request: Request, session: SessionDependency) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "dashboard.html",
-        {"dashboard": DashboardService(session).get()},
+        {
+            "dashboard": DashboardService(session).get(),
+            "vapid_enabled": request.app.state.settings.vapid_enabled,
+        },
     )
 
 
@@ -415,6 +421,93 @@ def keyword_delete(
             status_code=status.HTTP_404_NOT_FOUND, detail="키워드가 없습니다."
         ) from error
     return RedirectResponse(url="/admin/keywords", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@admin_router.get("/notifications", response_class=HTMLResponse)
+def notification_history(request: Request, session: SessionDependency) -> HTMLResponse:
+    """채널별 발송·실패·큐잉 이력과 카카오 재인증 상태를 보여 준다."""
+    require_admin(request)
+    return templates.TemplateResponse(
+        request,
+        "notifications.html",
+        {
+            "history": NotificationHistoryService(session).get(),
+            "kakao_enabled": request.app.state.settings.kakao_enabled,
+        },
+    )
+
+
+@admin_router.get("/kakao/connect")
+def kakao_connect(request: Request) -> RedirectResponse:
+    """로그인 세션에 묶은 state와 함께 카카오 talk_message 동의로 이동한다."""
+    require_admin(request)
+    settings = request.app.state.settings
+    if not settings.kakao_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="카카오 OAuth 설정이 완료되지 않았습니다.",
+        )
+    state = secrets.token_urlsafe(32)
+    request.session["kakao_oauth_state"] = state
+    client = KakaoOAuthClient(
+        rest_api_key=settings.kakao_rest_api_key or "",
+        redirect_uri=settings.kakao_redirect_uri or "",
+        client_secret=settings.kakao_client_secret,
+    )
+    try:
+        url = client.authorization_url(state=state)
+    finally:
+        client.close()
+    return RedirectResponse(url=url, status_code=status.HTTP_303_SEE_OTHER)
+
+
+@auth_router.get("/oauth/kakao/callback")
+def kakao_callback(
+    request: Request,
+    session: SessionDependency,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+) -> RedirectResponse:
+    """카카오 인가 코드를 암호화 토큰으로 교환하고 관리 화면으로 돌아간다."""
+    require_admin(request)
+    expected_state = request.session.pop("kakao_oauth_state", None)
+    if (
+        error
+        or not code
+        or not expected_state
+        or not secrets.compare_digest(expected_state, state or "")
+    ):
+        return RedirectResponse(
+            url="/admin/notifications?oauth=failed", status_code=status.HTTP_303_SEE_OTHER
+        )
+    settings = request.app.state.settings
+    if not settings.kakao_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="카카오 OAuth 설정이 완료되지 않았습니다.",
+        )
+    client = KakaoOAuthClient(
+        rest_api_key=settings.kakao_rest_api_key or "",
+        redirect_uri=settings.kakao_redirect_uri or "",
+        client_secret=settings.kakao_client_secret,
+    )
+    try:
+        token_set = client.exchange_code(code)
+        KakaoTokenService(
+            session,
+            cipher=EncryptedTokenCipher(settings.fernet_key or ""),
+            client=client,
+        ).save(token_set)
+    except Exception:
+        return RedirectResponse(
+            url="/admin/notifications?oauth=failed", status_code=status.HTTP_303_SEE_OTHER
+        )
+    finally:
+        client.close()
+    return RedirectResponse(
+        url="/admin/notifications?oauth=connected", status_code=status.HTTP_303_SEE_OTHER
+    )
 
 
 def _safe_next(value: str | None) -> str:

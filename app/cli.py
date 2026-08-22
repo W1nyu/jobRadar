@@ -7,8 +7,13 @@ M3 이후 `crawl <slug>` 등이 여기에 추가된다.
 
 import argparse
 import sys
+from base64 import urlsafe_b64encode
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec
 
 from app.core.config import Settings, get_settings
 from app.crawlers import CrawlResult, get_crawler
@@ -118,11 +123,48 @@ def _print_crawl_result(result: CrawlResult) -> int:
     return 0
 
 
+def generate_vapid_keys() -> tuple[str, str]:
+    """Web Push 표준 P-256 VAPID 공개·비밀 키를 URL-safe Base64로 만든다."""
+    private_key = ec.generate_private_key(ec.SECP256R1())
+    private_value = private_key.private_numbers().private_value.to_bytes(32, "big")
+    public_value = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.X962,
+        format=serialization.PublicFormat.UncompressedPoint,
+    )
+    return _urlsafe_b64(public_value), _urlsafe_b64(private_value)
+
+
+def _urlsafe_b64(value: bytes) -> str:
+    """`.env` 한 줄에 저장할 수 있도록 padding 없는 Base64URL로 인코딩한다."""
+    return urlsafe_b64encode(value).decode().rstrip("=")
+
+
+def _print_vapid_keys() -> int:
+    """사용자가 `.env`에 직접 복사할 VAPID 키 쌍을 한 번만 출력한다."""
+    public_key, private_key = generate_vapid_keys()
+    print("VAPID_PUBLIC_KEY=" + public_key)
+    print("VAPID_PRIVATE_KEY=" + private_key)
+    return 0
+
+
+def generate_fernet_key() -> str:
+    """카카오 OAuth 토큰 암호화용 Fernet 키를 새로 만든다."""
+    return Fernet.generate_key().decode()
+
+
+def _print_fernet_key() -> int:
+    """사용자가 `.env`에 직접 복사할 Fernet 키를 한 번만 출력한다."""
+    print("FERNET_KEY=" + generate_fernet_key())
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     _force_utf8_stdout()
     parser = argparse.ArgumentParser(prog="app.cli", description="jobRadar 운영 CLI")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("check-keys", help="외부 API 키 설정 상태를 출력한다")
+    sub.add_parser("generate-vapid", help="M9 Web Push VAPID 키 쌍을 생성한다")
+    sub.add_parser("generate-fernet", help="M9 카카오 토큰 암호화용 Fernet 키를 생성한다")
     crawl_parser = sub.add_parser("crawl", help="등록 소스를 한 번 수집한다")
     crawl_parser.add_argument(
         "slug", choices=tuple(definition.slug for definition in BUILTIN_SOURCE_DEFINITIONS)
@@ -131,6 +173,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "check-keys":
         return _print_key_report(get_settings())
+    if args.command == "generate-vapid":
+        return _print_vapid_keys()
+    if args.command == "generate-fernet":
+        return _print_fernet_key()
     if args.command == "crawl":
         try:
             return _print_crawl_result(crawl_once(args.slug, get_settings()))

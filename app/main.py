@@ -17,6 +17,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.health import router as health_router
 from app.api.v1.keywords import router as keywords_router
+from app.api.v1.push import router as push_router
 from app.api.v1.sources import router as sources_router
 from app.api.web.admin import AdminLoginRequired, admin_router, auth_router, login_required_response
 from app.core.config import Settings, get_settings
@@ -55,5 +56,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth_router)
     app.include_router(admin_router)
     app.include_router(keywords_router)
+    app.include_router(push_router)
     app.include_router(sources_router)
     return app

@@ -24,7 +24,8 @@
 | M6 스케줄러 자동 수집 | **완료** — APScheduler·실행 이력·advisory lock·하트비트 |
 | M7 다중 사이트 확장 | **완료** — 인디스워크 JSON·금융투자협회 HTML·잡알리오 JSON, 기본 소스 5개 스케줄 |
 | M8 웹 관리 UI | **완료** — argon2 로그인·공고/소스/키워드 관리·HTMX 수동 수집·운영 대시보드 |
-| M9 ~ M12 | 대기 |
+| M9 알림 | 구현·자동 검증 완료 — 실제 Web Push·카카오 수신은 VAPID/카카오 앱 설정 후 검증 대기 |
+| M10 ~ M12 | 대기 |
 
 사람인 API는 승인 대기 중이며, 승인 후 실제 성공 응답 골든 파일을 확보한 뒤 별도 소스로
 추가한다. 잡플래닛은 이용약관상 자동 수집 허용 범위가 확인되기 전까지 보류한다.
@@ -62,6 +63,21 @@ ADMIN_USERNAME=admin
 ADMIN_PASSWORD_HASH=<위 명령의 출력값>
 ADMIN_SESSION_MAX_AGE_SECONDS=43200
 ```
+
+### 알림 설정 (M9)
+
+Web Push와 카카오톡은 둘 다 선택 기능이다. 관련 값이 비어 있어도 앱과 워커는 정상 기동하며,
+해당 채널만 비활성화된다. 키는 아래 명령으로 **사용자 터미널에서** 생성한 뒤 `.env`에만 넣는다.
+
+```bash
+uv run python -m app.cli generate-vapid
+uv run python -m app.cli generate-fernet
+```
+
+Web Push는 HTTPS 환경에서 `/admin`의 “브라우저 알림 연결”을 눌러 구독한다. 카카오는 개발자
+콘솔에 `KAKAO_REDIRECT_URI`를 정확히 등록하고 `talk_message` 동의를 활성화한 뒤,
+`/admin/notifications`의 “카카오 연결”을 사용한다. 토큰 갱신이 실패하면 Web Push와 관리 화면에
+재인증 안내가 표시된다.
 
 ### 데이터베이스 (M2)
 

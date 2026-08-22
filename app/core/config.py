@@ -48,6 +48,19 @@ class Settings(BaseSettings):
     admin_password_hash: str | None = None
     admin_session_max_age_seconds: int = 12 * 60 * 60
 
+    # ---- 알림 (M9부터 사용, 모두 미설정이어도 앱은 기동한다) ----
+    fernet_key: str | None = None
+    kakao_rest_api_key: str | None = None
+    kakao_client_secret: str | None = None
+    kakao_redirect_uri: str | None = None
+    vapid_public_key: str | None = None
+    vapid_private_key: str | None = None
+    vapid_subject: str | None = None
+    quiet_hours_start: str = "23:00"
+    quiet_hours_end: str = "08:00"
+    timezone: str = "Asia/Seoul"
+    notification_lookback_minutes: int = 10
+
     # ---- 데이터베이스 ----
     # Windows 개발 Docker의 IPv6 localhost 우선 해석으로 인한 연결 지연을 피하려고 IPv4 loopback을 쓴다.
     database_url: str = "postgresql+psycopg://jobradar:jobradar@127.0.0.1:5432/jobradar"
@@ -82,6 +95,22 @@ class Settings(BaseSettings):
     def admin_auth_enabled(self) -> bool:
         """관리자 비밀번호 해시가 정상적으로 설정됐는지 반환한다."""
         return not _is_blank(self.admin_password_hash)
+
+    @property
+    def vapid_enabled(self) -> bool:
+        """Web Push VAPID 설정이 전송·구독에 충분한지 반환한다."""
+        return all(
+            not _is_blank(value)
+            for value in (self.vapid_public_key, self.vapid_private_key, self.vapid_subject)
+        )
+
+    @property
+    def kakao_enabled(self) -> bool:
+        """카카오 OAuth와 암호화 저장에 필요한 설정이 모두 있는지 반환한다."""
+        return all(
+            not _is_blank(value)
+            for value in (self.fernet_key, self.kakao_rest_api_key, self.kakao_redirect_uri)
+        )
 
     @property
     def data_go_kr_enabled(self) -> bool:

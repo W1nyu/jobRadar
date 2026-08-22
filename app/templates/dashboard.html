@@ -11,6 +11,17 @@
 {% else %}
 <p class="notice success">워커 하트비트: {{ dashboard.worker_heartbeat_at }}</p>
 {% endif %}
+{% if dashboard.kakao_reauth_required %}
+<p class="notice error">카카오 재인증이 필요합니다. {{ dashboard.kakao_reauth_error or "" }} <a href="/admin/kakao/connect">카카오 다시 연결</a></p>
+{% endif %}
+
+{% if vapid_enabled %}
+<section class="card">
+  <h2>브라우저 알림</h2>
+  <p>이 브라우저에서 새 매칭 공고 알림을 받습니다.</p>
+  <button type="button" data-push-subscribe>브라우저 알림 연결</button>
+</section>
+{% endif %}
 
 <section class="card">
   <h2>소스 상태</h2>
@@ -54,3 +65,4 @@
   </div>
 </section>
 {% endblock %}
+{% block scripts %}<script src="/static/push.js" defer></script>{% endblock %}

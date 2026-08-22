@@ -310,6 +310,7 @@ class OAuthToken(Base):
     refresh_token_enc: Mapped[str | None] = mapped_column(Text)
     access_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     refresh_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(Text)
 
 
 class AppSetting(Base):
