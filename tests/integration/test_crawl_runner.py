@@ -106,6 +106,24 @@ def test_성공_수집은_crawl_runs_요약과_공고_집계를_남긴다(
 
 
 @pytest.mark.integration
+def test_실행시에만_주입한_api_키는_소스_설정에_저장하지_않는다(
+    runner_context: tuple[CrawlExecutionService, Session, Source, FixtureCrawler],
+) -> None:
+    runner, session, source, crawler = runner_context
+
+    def crawl_with_runtime_credential(crawl_source: CrawlSource) -> CrawlResult:
+        crawl_source.config["service_key"] = "runtime-secret"
+        return crawler(crawl_source)
+
+    runner.crawl = crawl_with_runtime_credential
+    runner.run_source(source_id=source.id, trigger=CrawlTrigger.SCHEDULED)
+    session.refresh(source)
+
+    assert source.config == {}
+    assert "runtime-secret" not in str(source.config)
+
+
+@pytest.mark.integration
 def test_이미_수집_중인_소스의_수동_트리거는_skipped로_기록된다(
     runner_context: tuple[CrawlExecutionService, Session, Source, FixtureCrawler],
 ) -> None:

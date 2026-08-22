@@ -19,6 +19,7 @@ from app.services.collector import CollectorService
 
 CrawlCallable = Callable[[CrawlSource], CrawlResult]
 SessionFactory = Callable[[], Session]
+_RUNTIME_CREDENTIAL_CONFIG_KEYS = frozenset({"service_key"})
 
 
 class SourceNotFoundError(LookupError):
@@ -172,7 +173,8 @@ class CrawlExecutionService:
             run.items_new = collected.items_new
             run.items_updated = collected.items_updated
             run.http_status_summary = result.http_status_summary
-            source.config = crawl_source.config
+            # 실행 시 Settings에서만 주입한 API 키는 크롤러에 전달하되 DB에는 남기지 않는다.
+            source.config = _public_source_config(crawl_source.config)
             if run.status is CrawlStatus.SUCCESS:
                 source.last_success_at = datetime.now(UTC)
             session.commit()
@@ -228,3 +230,14 @@ def _to_crawl_source(source: Source) -> CrawlSource:
 def _duration_ms(started_at: float) -> int:
     """단조 시계를 써서 시스템 시간 변경과 무관한 실행 시간을 기록한다."""
     return int((time.perf_counter() - started_at) * 1_000)
+
+
+def _public_source_config(config: dict[str, object]) -> dict[str, object]:
+    """소스 설정에 남겨도 되는 수집 상태만 복사한다.
+
+    ETag·Last-Modified 같은 공개 캐시는 보존하지만, 실행 직전에만 주입한 자격 증명은
+    관리자 UI·DB 백업·로그에 섞이지 않도록 제외한다.
+    """
+    return {
+        key: value for key, value in config.items() if key not in _RUNTIME_CREDENTIAL_CONFIG_KEYS
+    }

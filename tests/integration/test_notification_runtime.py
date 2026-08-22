@@ -56,12 +56,16 @@ def db_session() -> Generator[Session, None, None]:
 def test_카카오_재인증_실패는_web_push로_한번_안내하고_ui_상태를_남긴다(
     db_session: Session,
 ) -> None:
-    db_session.add(
-        AppSetting(
-            key="kakao_reauth",
-            value={"required": True, "error": "invalid_grant", "notified": False},
+    state = db_session.get(AppSetting, "kakao_reauth")
+    if state is None:
+        db_session.add(
+            AppSetting(
+                key="kakao_reauth",
+                value={"required": True, "error": "invalid_grant", "notified": False},
+            )
         )
-    )
+    else:
+        state.value = {"required": True, "error": "invalid_grant", "notified": False}
     db_session.flush()
     runtime = NotificationRuntime(
         Settings(
