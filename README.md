@@ -55,7 +55,7 @@ uv run uvicorn app.main:create_app --factory --reload
 비밀번호는 저장하지 말고 아래 명령으로 생성한 argon2 해시를 `.env`에 복사한다.
 
 ```bash
-uv run python -c "from getpass import getpass; from argon2 import PasswordHasher; print(PasswordHasher().hash(getpass('관리자 비밀번호: ')))"
+uv run python -m app.cli generate-password-hash
 ```
 
 ```dotenv

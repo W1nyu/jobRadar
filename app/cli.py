@@ -9,8 +9,10 @@ import argparse
 import sys
 from base64 import urlsafe_b64encode
 from dataclasses import dataclass
+from getpass import getpass
 from typing import TYPE_CHECKING
 
+from argon2 import PasswordHasher
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -158,6 +160,21 @@ def _print_fernet_key() -> int:
     return 0
 
 
+def generate_password_hash(password: str) -> str:
+    """관리자 평문 비밀번호를 환경변수에 저장할 argon2 해시로 변환한다."""
+    return PasswordHasher().hash(password)
+
+
+def _print_password_hash() -> int:
+    """평문을 화면에 표시하지 않고 관리자 비밀번호 해시만 출력한다."""
+    password = getpass("관리자 비밀번호: ")
+    if not password:
+        print("비밀번호는 비워 둘 수 없습니다.", file=sys.stderr)
+        return 2
+    print("ADMIN_PASSWORD_HASH=" + generate_password_hash(password))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     _force_utf8_stdout()
     parser = argparse.ArgumentParser(prog="app.cli", description="jobRadar 운영 CLI")
@@ -165,6 +182,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("check-keys", help="외부 API 키 설정 상태를 출력한다")
     sub.add_parser("generate-vapid", help="M9 Web Push VAPID 키 쌍을 생성한다")
     sub.add_parser("generate-fernet", help="M9 카카오 토큰 암호화용 Fernet 키를 생성한다")
+    sub.add_parser("generate-password-hash", help="M8 관리자 비밀번호 argon2 해시를 생성한다")
     crawl_parser = sub.add_parser("crawl", help="등록 소스를 한 번 수집한다")
     crawl_parser.add_argument(
         "slug", choices=tuple(definition.slug for definition in BUILTIN_SOURCE_DEFINITIONS)
@@ -177,6 +195,8 @@ def main(argv: list[str] | None = None) -> int:
         return _print_vapid_keys()
     if args.command == "generate-fernet":
         return _print_fernet_key()
+    if args.command == "generate-password-hash":
+        return _print_password_hash()
     if args.command == "crawl":
         try:
             return _print_crawl_result(crawl_once(args.slug, get_settings()))

@@ -6,7 +6,9 @@
 
 from base64 import urlsafe_b64decode
 
-from app.cli import generate_fernet_key, generate_vapid_keys, key_statuses
+from argon2 import PasswordHasher
+
+from app.cli import generate_fernet_key, generate_password_hash, generate_vapid_keys, key_statuses
 from app.core.config import Settings
 
 
@@ -76,3 +78,9 @@ def test_fernet_키생성은_정확한_base64_길이를_반환한다() -> None:
     key = generate_fernet_key()
 
     assert len(urlsafe_b64decode(key)) == 32
+
+
+def test_관리자_비밀번호는_argon2_해시로_생성한다() -> None:
+    password_hash = generate_password_hash("admin-password")
+
+    assert PasswordHasher().verify(password_hash, "admin-password") is True
