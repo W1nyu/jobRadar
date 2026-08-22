@@ -23,6 +23,13 @@ def test_healthz는_200과_ok를_반환한다() -> None:
     assert response.json()["status"] == "ok"
 
 
+def test_루트_접속은_관리자_화면으로_이동한다() -> None:
+    response = build_client().get("/", follow_redirects=False)
+
+    assert response.status_code == 307
+    assert response.headers["location"] == "/admin"
+
+
 def test_healthz는_버전을_알려준다() -> None:
     """배포 후 어떤 버전이 떠 있는지 확인하는 용도."""
     body = build_client().get("/healthz").json()

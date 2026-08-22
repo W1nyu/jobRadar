@@ -48,6 +48,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         https_only=settings.is_production,
     )
 
+    @app.get("/", include_in_schema=False)
+    def root() -> RedirectResponse:
+        """서비스 기본 주소는 관리자 진입점으로 보낸다."""
+        return RedirectResponse(url="/admin")
+
     @app.exception_handler(AdminLoginRequired)
     def redirect_unauthenticated_admin(request: Request, _: AdminLoginRequired) -> RedirectResponse:
         return login_required_response(request)
