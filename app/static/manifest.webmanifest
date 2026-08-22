@@ -1,0 +1,9 @@
+{
+  "name": "jobRadar",
+  "short_name": "jobRadar",
+  "description": "개인용 채용공고 모니터링 서비스",
+  "start_url": "/admin",
+  "display": "standalone",
+  "background_color": "#f6f8fb",
+  "theme_color": "#12355b"
+}

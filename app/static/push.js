@@ -13,7 +13,7 @@ if (button) {
       return;
     }
     const publicKey = await (await fetch("/api/v1/push/public-key")).json();
-    const registration = await navigator.serviceWorker.register("/static/sw.js");
+    const registration = await navigator.serviceWorker.register("/sw.js");
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: base64ToUint8Array(publicKey.public_key),

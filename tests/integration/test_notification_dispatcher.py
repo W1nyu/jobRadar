@@ -111,7 +111,7 @@ def test_다섯_소스의_신규_매칭은_채널별_한번의_배치로_전송�
     db_session: Session,
 ) -> None:
     now = datetime(2026, 8, 22, 3, 0, tzinfo=UTC)
-    _matched_postings(db_session, count=5, now=now)
+    postings = _matched_postings(db_session, count=5, now=now)
     channel = RecordingChannel()
     dispatcher = NotificationDispatcher(
         db_session,
@@ -122,7 +122,13 @@ def test_다섯_소스의_신규_매칭은_채널별_한번의_배치로_전송�
     first = dispatcher.dispatch(now=now)
     second = dispatcher.dispatch(now=now)
 
-    notifications = list(db_session.scalars(select(Notification)))
+    notifications = list(
+        db_session.scalars(
+            select(Notification).where(
+                Notification.job_posting_id.in_([item.id for item in postings])
+            )
+        )
+    )
     assert first.sent == 5
     assert second.sent == 0
     assert len(channel.payloads) == 1
@@ -135,7 +141,7 @@ def test_다섯_소스의_신규_매칭은_채널별_한번의_배치로_전송�
 @pytest.mark.integration
 def test_방해금지_시간에는_큐잉하고_종료시각_이후에_전송한다(db_session: Session) -> None:
     quiet_now = datetime(2026, 8, 22, 14, 30, tzinfo=UTC)  # KST 23:30
-    _matched_postings(db_session, count=1, now=quiet_now)
+    posting = _matched_postings(db_session, count=1, now=quiet_now)[0]
     channel = RecordingChannel()
     dispatcher = NotificationDispatcher(
         db_session,
@@ -144,7 +150,9 @@ def test_방해금지_시간에는_큐잉하고_종료시각_이후에_전송한
     )
 
     queued = dispatcher.dispatch(now=quiet_now)
-    notification = db_session.scalar(select(Notification))
+    notification = db_session.scalar(
+        select(Notification).where(Notification.job_posting_id == posting.id)
+    )
 
     assert queued.queued == 1
     assert notification is not None

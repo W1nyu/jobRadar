@@ -10,8 +10,10 @@
     uvicorn app.main:create_app --factory
 """
 
+from pathlib import Path
+
 from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -22,6 +24,8 @@ from app.api.v1.sources import router as sources_router
 from app.api.web.admin import AdminLoginRequired, admin_router, auth_router, login_required_response
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging
+
+_STATIC_DIR = Path(__file__).parent / "static"
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -39,7 +43,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         openapi_url="/openapi.json" if docs_enabled else None,
     )
     app.state.settings = settings
-    app.mount("/static", StaticFiles(directory="app/static"), name="static")
+    app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
     app.add_middleware(
         SessionMiddleware,
         secret_key=settings.secret_key,
@@ -52,6 +56,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def root() -> RedirectResponse:
         """서비스 기본 주소는 관리자 진입점으로 보낸다."""
         return RedirectResponse(url="/admin")
+
+    @app.get("/sw.js", include_in_schema=False)
+    def service_worker() -> FileResponse:
+        """관리자·홈 화면 웹앱 전체를 제어하는 Service Worker를 제공한다."""
+        return FileResponse(_STATIC_DIR / "sw.js", media_type="application/javascript")
 
     @app.exception_handler(AdminLoginRequired)
     def redirect_unauthenticated_admin(request: Request, _: AdminLoginRequired) -> RedirectResponse:
