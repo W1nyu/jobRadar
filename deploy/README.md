@@ -6,15 +6,17 @@
 ```bash
 sudo JOBRADAR_DOMAIN=jobradar.my /opt/jobradar/deploy/bootstrap-server.sh
 
-# postgres 역할·DB 생성 후 .env 작성. 비밀번호는 DATABASE_URL과 같게 설정한다.
+# PostgreSQL은 Unix 소켓 peer 인증을 쓴다. app systemd가 jobradar 사용자로 실행되므로
+# DB 비밀번호를 .env에 보관할 필요가 없다.
 sudo -u postgres psql
-CREATE ROLE jobradar LOGIN PASSWORD '<DB 비밀번호>';
+CREATE ROLE jobradar LOGIN;
 CREATE DATABASE jobradar OWNER jobradar;
 \q
 
 sudo -u jobradar cp /opt/jobradar/.env.example /opt/jobradar/.env
 sudo -u jobradar chmod 600 /opt/jobradar/.env
-# .env: APP_ENV=production, APP_BASE_URL=https://jobradar.my, SECRET_KEY 및 API·알림 키를 설정한다.
+# .env: APP_ENV=production, APP_BASE_URL=https://jobradar.my, LOG_JSON=true,
+# DATABASE_URL=postgresql+psycopg://jobradar@/jobradar?host=/var/run/postgresql 및 API·알림 키를 설정한다.
 
 sudo /opt/jobradar/deploy/deploy.sh
 sudo /opt/jobradar/deploy/enable-https.sh jobradar.my <Let's Encrypt 알림 이메일>

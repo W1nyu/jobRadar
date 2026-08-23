@@ -37,7 +37,11 @@ vm.swappiness=10
 EOF
 sysctl --system >/dev/null
 
-pg_major=$(pg_config --version | awk '{print $2}' | cut -d. -f1)
+pg_major=$(pg_lsclusters --no-header | awk 'NR == 1 {print $1}')
+if [[ -z "${pg_major}" ]]; then
+    echo "PostgreSQL 클러스터 버전을 찾지 못했습니다." >&2
+    exit 2
+fi
 pg_conf_dir="/etc/postgresql/${pg_major}/main/conf.d"
 if [[ ! -d "${pg_conf_dir}" ]]; then
     echo "PostgreSQL 설정 경로를 찾지 못했습니다: ${pg_conf_dir}" >&2
