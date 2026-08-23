@@ -4,6 +4,8 @@ set -euo pipefail
 
 app_dir=/opt/jobradar
 app_user=jobradar
+uv_bin=/home/jobradar/.local/bin/uv
+uv_python_dir=${app_dir}/.uv-python
 domain=${JOBRADAR_DOMAIN:-jobradar.my}
 
 if [[ ${EUID} -ne 0 ]]; then
@@ -23,7 +25,13 @@ if ! id "${app_user}" >/dev/null 2>&1; then
     adduser --system --group --home /home/${app_user} --shell /usr/sbin/nologin "${app_user}"
 fi
 chown -R "${app_user}:${app_user}" "${app_dir}"
-runuser -u "${app_user}" -- pipx install uv
+# systemd는 ProtectHome으로 /home을 차단한다. Python 런타임은 앱 디렉터리에 둬야
+# .venv의 인터프리터 심볼릭 링크를 서비스가 따라갈 수 있다.
+runuser -u "${app_user}" -- pipx install --force uv
+install -d -o "${app_user}" -g "${app_user}" -m 0755 "${uv_python_dir}"
+runuser -u "${app_user}" -- env UV_PYTHON_INSTALL_DIR="${uv_python_dir}" \
+    "${uv_bin}" python install 3.12
+rm -rf "${app_dir}/.venv"
 
 if ! swapon --show=NAME --noheadings | grep -q '^/swapfile$'; then
     fallocate -l 2G /swapfile

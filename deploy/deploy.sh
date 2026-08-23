@@ -5,6 +5,7 @@ set -euo pipefail
 app_dir=/opt/jobradar
 app_user=jobradar
 uv_bin=/home/jobradar/.local/bin/uv
+uv_python_dir=${app_dir}/.uv-python
 
 if [[ ${EUID} -ne 0 ]]; then
     echo "root로 실행하세요: sudo /opt/jobradar/deploy/deploy.sh" >&2
@@ -20,8 +21,10 @@ if [[ ! -x ${uv_bin} ]]; then
 fi
 
 runuser -u "${app_user}" -- git -C "${app_dir}" pull --ff-only
-runuser -u "${app_user}" -- "${uv_bin}" sync --frozen --no-dev --directory "${app_dir}"
-runuser -u "${app_user}" -- "${uv_bin}" run --directory "${app_dir}" alembic upgrade head
+runuser -u "${app_user}" -- env UV_PYTHON_INSTALL_DIR="${uv_python_dir}" \
+    "${uv_bin}" sync --frozen --no-dev --directory "${app_dir}"
+runuser -u "${app_user}" -- env UV_PYTHON_INSTALL_DIR="${uv_python_dir}" \
+    "${uv_bin}" run --directory "${app_dir}" alembic upgrade head
 
 systemctl daemon-reload
 systemctl restart jobradar-api.service jobradar-worker.service

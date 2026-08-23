@@ -2,6 +2,7 @@
 
 원격 저장소가 `origin`으로 설정된 깨끗한 복제본을 `/opt/jobradar`에 두고, Ubuntu 22.04 LTS에서 진행한다.
 `.env`는 저장소에 커밋하지 않고 `/opt/jobradar/.env`에 `jobradar:jobradar`, 권한 `600`으로 저장한다.
+Python 3.12 런타임과 가상환경은 systemd의 `ProtectHome` 격리를 유지하도록 `/opt/jobradar` 아래에 둔다.
 
 ```bash
 sudo JOBRADAR_DOMAIN=jobradar.my bash /opt/jobradar/deploy/bootstrap-server.sh
