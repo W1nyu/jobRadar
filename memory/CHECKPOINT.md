@@ -9,8 +9,9 @@
 - GitHub 원격: `https://github.com/W1nyu/jobRadar.git`
 - 운영 주소: `https://jobradar.my`
 - 최신 로컬 검증: `pytest` **136개 통과**, `ruff check .`, `ruff format --check .` 통과
-- GitHub Actions: 실행 `32621411424`에서 PostgreSQL 16·마이그레이션·lint·format·전체 테스트 통과
-- 운영 VM: API·워커 `active`, `/readyz` 정상, 자동 채용공고 알림 `KST 09:00` cron 확인
+- GitHub Actions: 실행 `32623337977`에서 PostgreSQL 16·마이그레이션·lint·format·전체 테스트 통과
+- 운영 VM: 커밋 `0f4e25a` 배포 완료. API·워커 `active`, `/readyz` 정상, 자동 채용공고 알림
+  `KST 09:00` cron 확인
 
 ## 2026-08-23 정확도·보존 보완
 
@@ -20,7 +21,8 @@
   공고를 저장한다.
 - 링커리어는 `/list/activity` 대신 `activityTypeID=5`, `OPEN` 조건의 `/list/recruit`을 수집한다.
   활동성 제목도 방어적으로 제외하고, 목록 초기 상태의 마감일을 저장한다.
-- 배포 시 기존에 저장된 보조 키워드 단독·비IT 공고는 SQL 정리 후, 각 소스를 다시 수집한다.
+- 배포 직후 기존 보조 키워드 단독·비IT 공고 36건을 삭제했다. 만료 기준에 해당한 공고는 0건이었다.
+  링커리어 수동 수집은 20건을 읽어 관심 공고 5건을 새로 저장했고, 현재 공고는 29건이다.
 
 ## 완성된 알림 정책
 
