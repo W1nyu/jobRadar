@@ -1,0 +1,16 @@
+[Unit]
+Description=jobRadar PostgreSQL 백업
+After=postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=oneshot
+User=postgres
+Group=postgres
+ExecStart=/opt/jobradar/deploy/backup.sh
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/backups/jobradar
+UMask=0077

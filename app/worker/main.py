@@ -22,6 +22,7 @@ from app.repositories import AppSettingRepository
 from app.services.crawl_health import OperationalAlert
 from app.services.crawl_runner import CrawlExecutionService, crawl_registered_source
 from app.services.notification_runtime import NotificationRuntime
+from app.services.retention import RetentionService
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,6 +53,7 @@ class WorkerScheduler:
         max_workers: int,
         dispatch_notifications: Callable[[], None] | None = None,
         refresh_kakao_tokens: Callable[[], None] | None = None,
+        run_retention: Callable[[], None] | None = None,
         timezone: str = "Asia/Seoul",
     ) -> None:
         if max_workers < 1:
@@ -61,6 +63,7 @@ class WorkerScheduler:
         self.heartbeat = heartbeat
         self.dispatch_notifications = dispatch_notifications
         self.refresh_kakao_tokens = refresh_kakao_tokens
+        self.run_retention = run_retention
         self.timezone = timezone
         self.scheduler = BackgroundScheduler(
             executors={"default": ThreadPoolExecutor(max_workers=max_workers)},
@@ -96,6 +99,17 @@ class WorkerScheduler:
                 minute=0,
                 timezone=ZoneInfo(self.timezone),
                 id="kakao-token-refresh",
+                replace_existing=True,
+                coalesce=True,
+            )
+        if self.run_retention is not None:
+            self.scheduler.add_job(
+                self.run_retention,
+                trigger="cron",
+                hour=4,
+                minute=30,
+                timezone=ZoneInfo(self.timezone),
+                id="retention",
                 replace_existing=True,
                 coalesce=True,
             )
@@ -200,6 +214,11 @@ def build_worker(settings: Settings | None = None) -> WorkerScheduler:
         with SessionLocal() as session:
             notifications.refresh_kakao_tokens(session)
 
+    def run_retention() -> None:
+        with SessionLocal() as session:
+            RetentionService(session).run()
+            session.commit()
+
     return WorkerScheduler(
         runner=runner,
         source_loader=lambda: load_active_sources(SessionLocal),
@@ -207,6 +226,7 @@ def build_worker(settings: Settings | None = None) -> WorkerScheduler:
         max_workers=settings.crawl_max_workers,
         dispatch_notifications=dispatch_notifications,
         refresh_kakao_tokens=refresh_kakao_tokens,
+        run_retention=run_retention,
         timezone=settings.timezone,
     )
 

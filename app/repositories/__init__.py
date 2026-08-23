@@ -11,6 +11,7 @@ from app.repositories.models import (
     NotificationRepository,
     OAuthTokenRepository,
     PushSubscriptionRepository,
+    RetentionRepository,
     SourceRepository,
 )
 
@@ -25,5 +26,6 @@ __all__ = [
     "NotificationRepository",
     "OAuthTokenRepository",
     "PushSubscriptionRepository",
+    "RetentionRepository",
     "SourceRepository",
 ]

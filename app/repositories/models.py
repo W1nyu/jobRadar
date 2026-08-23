@@ -324,6 +324,55 @@ class CrawlRunRepository(CRUDRepository[CrawlRun]):
         ).all()
 
 
+class RetentionRepository:
+    """보존 기간이 지난 운영 데이터를 한 트랜잭션에서 정리한다."""
+
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def clear_closed_posting_content(self, *, closed_before: datetime) -> int:
+        """마감 후 오래된 공고는 메타데이터만 남기고 큰 본문·원본을 비운다."""
+        postings = self.session.scalars(
+            select(JobPosting)
+            .where(
+                JobPosting.is_open.is_(False),
+                JobPosting.closed_at.is_not(None),
+                JobPosting.closed_at < closed_before,
+            )
+            .with_for_update()
+        ).all()
+        cleared = 0
+        for posting in postings:
+            if posting.description is None and posting.raw == {}:
+                continue
+            posting.description = None
+            # raw는 NOT NULL 컬럼이라 NULL 대신 빈 객체로 비워 메타데이터 행을 보존한다.
+            posting.raw = {}
+            cleared += 1
+        return cleared
+
+    def delete_crawl_runs_before(self, *, started_before: datetime) -> int:
+        """대시보드에 더 이상 필요 없는 오래된 실행 이력을 삭제한다."""
+        result = self.session.execute(delete(CrawlRun).where(CrawlRun.started_at < started_before))
+        return int(result.rowcount or 0)
+
+    def delete_notifications_before(self, *, sent_before: datetime) -> int:
+        """발송 완료 시각 기준으로 오래된 알림 이력을 삭제한다."""
+        result = self.session.execute(
+            delete(Notification).where(
+                Notification.sent_at.is_not(None), Notification.sent_at < sent_before
+            )
+        )
+        return int(result.rowcount or 0)
+
+    def delete_revisions_before(self, *, detected_before: datetime) -> int:
+        """오래된 변경 이력을 삭제해 JSONB 누적을 막는다."""
+        result = self.session.execute(
+            delete(JobPostingRevision).where(JobPostingRevision.detected_at < detected_before)
+        )
+        return int(result.rowcount or 0)
+
+
 class NotificationRepository(CRUDRepository[Notification]):
     def __init__(self, session: Session) -> None:
         super().__init__(session, Notification)

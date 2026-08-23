@@ -1,0 +1,10 @@
+[Unit]
+Description=매일 jobRadar PostgreSQL 백업
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+Unit=jobradar-backup.service
+
+[Install]
+WantedBy=timers.target
