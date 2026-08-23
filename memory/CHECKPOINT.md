@@ -8,7 +8,7 @@
 
 - GitHub 원격: `https://github.com/W1nyu/jobRadar.git`
 - 운영 주소: `https://jobradar.my`
-- 최신 로컬 검증: `pytest` **135개 통과**, `ruff check .`, `ruff format --check .` 통과
+- 최신 로컬 검증: `pytest` **136개 통과**, `ruff check .`, `ruff format --check .` 통과
 - GitHub Actions: 실행 `32621411424`에서 PostgreSQL 16·마이그레이션·lint·format·전체 테스트 통과
 - 운영 VM: API·워커 `active`, `/readyz` 정상, 자동 채용공고 알림 `KST 09:00` cron 확인
 

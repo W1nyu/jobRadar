@@ -38,6 +38,7 @@ class KeywordMatchResult:
     include_matches: tuple[KeywordMatchEvidence, ...]
     exclude_matches: tuple[KeywordMatchEvidence, ...]
     has_primary_include: bool
+    has_active_include: bool
 
     @property
     def is_matched(self) -> bool:
@@ -48,6 +49,11 @@ class KeywordMatchResult:
     def all_matches(self) -> tuple[KeywordMatchEvidence, ...]:
         """UI 근거 조회를 위해 include와 exclude 모두 보존한다."""
         return self.include_matches + self.exclude_matches
+
+    @property
+    def should_persist(self) -> bool:
+        """include 키워드가 없을 때만 필터 없이 저장하고, 있으면 관심 공고만 저장한다."""
+        return not self.has_active_include or self.is_matched
 
 
 class KeywordMatcher:
@@ -82,11 +88,14 @@ def evaluate_keywords(*, posting: JobPosting, keywords: Sequence[Keyword]) -> Ke
     include_matches: list[KeywordMatchEvidence] = []
     exclude_matches: list[KeywordMatchEvidence] = []
     has_primary_include = False
+    has_active_include = False
     fields = {"title": posting.title, "description": posting.description or ""}
 
     for keyword in keywords:
         if keyword.is_active is False or keyword.id is None:
             continue
+        if keyword.kind is KeywordKind.INCLUDE:
+            has_active_include = True
         found = _find_first_match(keyword=keyword, fields=fields)
         if found is None:
             continue
@@ -108,6 +117,7 @@ def evaluate_keywords(*, posting: JobPosting, keywords: Sequence[Keyword]) -> Ke
         include_matches=tuple(sorted(include_matches, key=_sort_key)),
         exclude_matches=tuple(sorted(exclude_matches, key=_sort_key)),
         has_primary_include=has_primary_include,
+        has_active_include=has_active_include,
     )
 
 

@@ -40,6 +40,13 @@ def test_include_키워드는_대상_필드에서_부분_일치하고_근거를_
     assert "데이터 분석가" in result.include_matches[0].matched_snippet
 
 
+def test_활성_include_키워드가_없으면_수집기는_공고를_저장할_수_있다() -> None:
+    result = evaluate_keywords(posting=_posting(title="데이터 분석가"), keywords=[])
+
+    assert result.is_matched is False
+    assert result.should_persist is True
+
+
 def test_exclude_키워드가_일치하면_include_공고도_관심_대상에서_제외된다() -> None:
     result = evaluate_keywords(
         posting=_posting(title="데이터 분석가", description="경력 5년 이상"),

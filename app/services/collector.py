@@ -65,7 +65,7 @@ class CollectorService:
                     match_result = self.keyword_matcher.match_and_record(
                         posting=deduplicated.posting
                     )
-                    if not match_result.is_matched:
+                    if not match_result.should_persist:
                         # 보조 조건(신입·인턴)만 맞거나 제외 키워드가 맞은 공고는 DB에 남기지
                         # 않는다. 이후 알림·관리 화면도 관심 공고만 보게 된다.
                         self.session.delete(deduplicated.posting)
@@ -87,7 +87,7 @@ class CollectorService:
                     )
                 self.postings.apply_seen(posting, job, seen_at=now)
                 match_result = self.keyword_matcher.match_and_record(posting=posting)
-                if not match_result.is_matched:
+                if not match_result.should_persist:
                     self.session.delete(posting)
                     continue
                 if was_changed:
