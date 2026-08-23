@@ -19,6 +19,7 @@ from app.core.logging import configure_logging
 from app.crawlers.sources import with_runtime_credentials
 from app.models import CrawlTrigger, Source
 from app.repositories import AppSettingRepository
+from app.services.crawl_health import OperationalAlert
 from app.services.crawl_runner import CrawlExecutionService, crawl_registered_source
 from app.services.notification_runtime import NotificationRuntime
 
@@ -172,6 +173,12 @@ def build_worker(settings: Settings | None = None) -> WorkerScheduler:
     """운영 설정으로 크롤러 실행·소스 로딩·하트비트를 조립한다."""
     settings = settings or get_settings()
     engine = get_engine()
+    notifications = NotificationRuntime(settings)
+
+    def send_operational_alert(alert: OperationalAlert) -> None:
+        with SessionLocal() as session:
+            notifications.send_operational_alert(session, alert)
+
     runner = CrawlExecutionService(
         engine=engine,
         session_factory=SessionLocal,
@@ -180,8 +187,10 @@ def build_worker(settings: Settings | None = None) -> WorkerScheduler:
             user_agent=settings.crawl_user_agent,
             max_response_bytes=settings.crawl_max_response_bytes,
         ),
+        failure_threshold=settings.source_failure_threshold,
+        collection_drop_ratio=settings.collection_drop_ratio,
+        operational_alert_sender=send_operational_alert,
     )
-    notifications = NotificationRuntime(settings)
 
     def dispatch_notifications() -> None:
         with SessionLocal() as session:

@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.models import AppSetting
 from app.notifications.contracts import NotificationPayload, SendResult
+from app.services.crawl_health import source_disabled_alert
 from app.services.notification_runtime import NotificationRuntime
 from tests.integration.test_database import TEST_DATABASE_URL
 
@@ -85,3 +86,27 @@ def test_카카오_재인증_실패는_web_push로_한번_안내하고_ui_상태
     assert channel.payloads[0].url == "https://example.com/admin/kakao/connect"
     assert state is not None
     assert state.value["notified"] is True
+
+
+@pytest.mark.integration
+def test_수집_장애_운영_알림은_web_push로_보내고_공고_알림_이력에는_섞지_않는다(
+    db_session: Session,
+) -> None:
+    runtime = NotificationRuntime(
+        Settings(
+            _env_file=None,
+            APP_BASE_URL="https://example.com",
+            SECRET_KEY="test-secret",
+        )
+    )
+    channel = ReauthRecordingChannel()
+    runtime._web_push_channel = lambda _session: channel  # type: ignore[method-assign]
+
+    runtime.send_operational_alert(
+        db_session,
+        source_disabled_alert(source_id=42, source_name="테스트 소스", failures=5),
+    )
+
+    assert len(channel.payloads) == 1
+    assert channel.payloads[0].title == "수집 소스 자동 비활성화"
+    assert channel.payloads[0].url == "https://example.com/admin/sources/42"

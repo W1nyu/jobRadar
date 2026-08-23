@@ -9,10 +9,11 @@ from typing import Any
 from urllib.parse import unquote
 
 from app.crawlers.base import BaseCrawler, RawJob, RawPage
+from app.crawlers.errors import CrawlSchemaError
 from app.crawlers.registry import register_crawler
 
 
-class DataGoKrMsitApiError(ValueError):
+class DataGoKrMsitApiError(CrawlSchemaError):
     """공공데이터포털 모집채용 API가 정상 응답을 반환하지 않은 경우."""
 
 

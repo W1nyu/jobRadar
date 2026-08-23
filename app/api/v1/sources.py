@@ -10,11 +10,13 @@ from app.core.db import SessionLocal, get_engine
 from app.crawlers.sources import with_runtime_credentials
 from app.models import CrawlTrigger
 from app.schemas.crawl import CrawlExecutionResponse
+from app.services.crawl_health import OperationalAlert
 from app.services.crawl_runner import (
     CrawlExecutionService,
     SourceNotFoundError,
     crawl_registered_source,
 )
+from app.services.notification_runtime import NotificationRuntime
 
 router = APIRouter(prefix="/api/v1/sources", tags=["sources"])
 
@@ -23,6 +25,12 @@ def get_crawl_execution_service(request: Request) -> CrawlExecutionService:
     """API 요청용 실행 서비스를 앱 설정과 지연 초기화 DB 팩토리로 조립한다."""
     settings = request.app.state.settings
     engine = get_engine()
+    notifications = NotificationRuntime(settings)
+
+    def send_operational_alert(alert: OperationalAlert) -> None:
+        with SessionLocal() as session:
+            notifications.send_operational_alert(session, alert)
+
     return CrawlExecutionService(
         engine=engine,
         session_factory=SessionLocal,
@@ -31,6 +39,9 @@ def get_crawl_execution_service(request: Request) -> CrawlExecutionService:
             user_agent=settings.crawl_user_agent,
             max_response_bytes=settings.crawl_max_response_bytes,
         ),
+        failure_threshold=settings.source_failure_threshold,
+        collection_drop_ratio=settings.collection_drop_ratio,
+        operational_alert_sender=send_operational_alert,
     )
 
 

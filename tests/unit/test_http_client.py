@@ -4,7 +4,7 @@ import httpx
 import pytest
 import respx
 
-from app.crawlers.http import HttpClient, ResponseTooLargeError
+from app.crawlers.http import HttpClient, HttpRateLimitError, ResponseTooLargeError
 
 
 def test_429는_성공할_때까지_최대_3회_재시도한다() -> None:
@@ -19,6 +19,19 @@ def test_429는_성공할_때까지_최대_3회_재시도한다() -> None:
     assert page is not None
     assert page.body == b"ok"
     assert route.call_count == 2
+
+
+def test_429가_계속되면_재시도_뒤_분류가능한_예외를_남긴다() -> None:
+    url = "https://example.com/rate-limit"
+    with respx.mock(assert_all_called=True) as router:
+        route = router.get(url).mock(side_effect=[httpx.Response(429)] * 3)
+        with (
+            HttpClient(rate_limit_per_min=60_000, retry_wait_seconds=0) as client,
+            pytest.raises(HttpRateLimitError),
+        ):
+            client.get(url)
+
+    assert route.call_count == 3
 
 
 def test_5mb를_넘는_응답은_메모리에_쌓지_않고_중단한다() -> None:

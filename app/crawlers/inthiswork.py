@@ -10,10 +10,11 @@ from html import unescape
 from bs4 import BeautifulSoup
 
 from app.crawlers.base import BaseCrawler, RawJob, RawPage
+from app.crawlers.errors import CrawlSchemaError
 from app.crawlers.registry import register_crawler
 
 
-class InThisWorkApiError(ValueError):
+class InThisWorkApiError(CrawlSchemaError):
     """인디스워크 WordPress API 응답이 계약과 다를 때 발생한다."""
 
 

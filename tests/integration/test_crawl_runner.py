@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Generator
 from uuid import uuid4
 
+import httpx
 import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import OperationalError
@@ -12,6 +13,8 @@ from sqlalchemy.orm import Session
 
 from app.core.locks import release_source_lock, try_acquire_source_lock
 from app.crawlers.base import CrawlResult, CrawlSource, RawJob
+from app.crawlers.errors import CrawlParserError
+from app.crawlers.http import HttpRateLimitError
 from app.models import CrawlRun, CrawlStatus, CrawlTrigger, FetchStrategy, Source
 from app.services.crawl_runner import CrawlExecutionService
 from tests.integration.test_database import TEST_DATABASE_URL
@@ -180,6 +183,127 @@ def test_부분_수집과_예외는_각각_partial과_failed_실행_이력으로
     failed_run = session.get(CrawlRun, failed_result.run_id)
     assert partial_run is not None
     assert partial_run.status is CrawlStatus.PARTIAL
+    assert partial_run.error_type == "parser"
     assert failed_run is not None
     assert failed_run.status is CrawlStatus.FAILED
-    assert failed_run.error_type == "RuntimeError"
+    assert failed_run.error_type == "unknown"
+
+
+@pytest.mark.integration
+def test_잘못된_소스_url이_다섯번_실패하면_자동_비활성화하고_운영_알림은_한번만_보낸다(
+    runner_context: tuple[CrawlExecutionService, Session, Source, FixtureCrawler],
+) -> None:
+    runner, session, source, _ = runner_context
+    alerts: list[object] = []
+    runner.operational_alert_sender = alerts.append
+    source.base_url = "http://127.0.0.1:1/invalid-source"
+    session.flush()
+
+    def invalid_source_url(crawl_source: CrawlSource) -> CrawlResult:
+        assert crawl_source.base_url == source.base_url
+        raise httpx.ConnectError("연결할 수 없습니다.")
+
+    runner.crawl = invalid_source_url
+    results = [
+        runner.run_source(source_id=source.id, trigger=CrawlTrigger.SCHEDULED) for _ in range(5)
+    ]
+    session.refresh(source)
+    runs = [session.get(CrawlRun, result.run_id) for result in results]
+
+    assert all(result.status is CrawlStatus.FAILED for result in results)
+    assert source.consecutive_failures == 5
+    assert source.is_active is False
+    assert [run.error_type for run in runs if run is not None] == ["network"] * 5
+    assert len(alerts) == 1
+
+
+@pytest.mark.integration
+def test_수집_건수가_직전_성공보다_80퍼센트_급감하면_partial과_운영_알림으로_남는다(
+    runner_context: tuple[CrawlExecutionService, Session, Source, FixtureCrawler],
+) -> None:
+    runner, session, source, _ = runner_context
+    alerts: list[object] = []
+    runner.operational_alert_sender = alerts.append
+
+    def result_with_items(count: int) -> CrawlResult:
+        return CrawlResult(
+            items=[
+                RawJob(
+                    external_id=f"drop-{count}-{index}",
+                    url=f"https://example.com/jobs/{count}-{index}",
+                    title=f"데이터 분석가 {index}",
+                )
+                for index in range(count)
+            ],
+            pages_fetched=1,
+            http_status_summary={"200": 1},
+        )
+
+    runner.crawl = lambda _source: result_with_items(10)
+    baseline = runner.run_source(source_id=source.id, trigger=CrawlTrigger.SCHEDULED)
+    runner.crawl = lambda _source: result_with_items(2)
+    dropped = runner.run_source(source_id=source.id, trigger=CrawlTrigger.SCHEDULED)
+
+    baseline_run = session.get(CrawlRun, baseline.run_id)
+    dropped_run = session.get(CrawlRun, dropped.run_id)
+
+    assert baseline_run is not None
+    assert baseline_run.status is CrawlStatus.SUCCESS
+    assert dropped.status is CrawlStatus.PARTIAL
+    assert dropped_run is not None
+    assert dropped_run.error_type == "collection_drop"
+    assert (
+        dropped_run.error_message == "수집 건수가 직전 성공 10건에서 2건으로 80% 이상 감소했습니다."
+    )
+    assert len(alerts) == 1
+
+
+@pytest.mark.integration
+def test_타임아웃_429_파싱_오류는_서로_다른_운영_유형으로_기록된다(
+    runner_context: tuple[CrawlExecutionService, Session, Source, FixtureCrawler],
+) -> None:
+    runner, session, source, _ = runner_context
+    errors = (
+        httpx.ReadTimeout("응답 시간 초과"),
+        HttpRateLimitError("HTTP 429"),
+        CrawlParserError("목록 마크업이 바뀌었습니다."),
+    )
+    results = []
+    for error in errors:
+
+        def raise_error(_source: CrawlSource, error: Exception = error) -> CrawlResult:
+            raise error
+
+        runner.crawl = raise_error
+        results.append(runner.run_source(source_id=source.id, trigger=CrawlTrigger.SCHEDULED))
+
+    runs = [session.get(CrawlRun, result.run_id) for result in results]
+
+    assert [run.error_type for run in runs if run is not None] == [
+        "network",
+        "rate_limit",
+        "parser",
+    ]
+
+
+@pytest.mark.integration
+def test_완전_성공_수집은_연속_실패_횟수를_초기화한다(
+    runner_context: tuple[CrawlExecutionService, Session, Source, FixtureCrawler],
+) -> None:
+    runner, session, source, crawler = runner_context
+
+    def network_failure(_source: CrawlSource) -> CrawlResult:
+        raise httpx.ConnectError("연결할 수 없습니다.")
+
+    runner.crawl = network_failure
+    runner.run_source(source_id=source.id, trigger=CrawlTrigger.SCHEDULED)
+    runner.run_source(source_id=source.id, trigger=CrawlTrigger.SCHEDULED)
+    session.refresh(source)
+    assert source.consecutive_failures == 2
+
+    runner.crawl = crawler
+    result = runner.run_source(source_id=source.id, trigger=CrawlTrigger.SCHEDULED)
+    session.refresh(source)
+
+    assert result.status is CrawlStatus.SUCCESS
+    assert source.consecutive_failures == 0

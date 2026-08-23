@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from app.models import (
     AppSetting,
     CrawlRun,
+    CrawlStatus,
     JobKeywordMatch,
     JobPosting,
     JobPostingRevision,
@@ -294,6 +295,15 @@ class CrawlRunRepository(CRUDRepository[CrawlRun]):
             select(CrawlRun).join(ranked, CrawlRun.id == ranked.c.id).where(ranked.c.rank == 1)
         ).all()
         return {run.source_id: run for run in runs}
+
+    def latest_successful_items_fetched(self, *, source_id: int) -> int | None:
+        """급감 판단 기준이 되는 가장 최근 완전 성공 수집 건수를 반환한다."""
+        return self.session.scalar(
+            select(CrawlRun.items_fetched)
+            .where(CrawlRun.source_id == source_id, CrawlRun.status == CrawlStatus.SUCCESS)
+            .order_by(CrawlRun.started_at.desc(), CrawlRun.id.desc())
+            .limit(1)
+        )
 
     def items_fetched_since(self, *, since: datetime) -> dict[int, int]:
         """대시보드의 최근 24시간 소스별 수집 건수를 집계한다."""

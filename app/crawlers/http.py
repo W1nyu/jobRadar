@@ -33,6 +33,10 @@ class ResponseTooLargeError(HttpClientError):
     """응답이 메모리 예산 상한을 넘은 경우."""
 
 
+class HttpRateLimitError(HttpClientError):
+    """429 응답을 모두 재시도한 뒤에도 수집을 계속할 수 없는 경우."""
+
+
 class _RetryableHttpStatusError(HttpClientError):
     """429와 5xx를 tenacity 재시도 대상으로 바꾸는 내부 오류."""
 
@@ -92,7 +96,9 @@ class HttpClient:
             headers["If-Modified-Since"] = last_modified
 
         retrying = Retrying(
-            retry=retry_if_exception_type((_RetryableHttpStatusError, httpx.TransportError)),
+            retry=retry_if_exception_type(
+                (_RetryableHttpStatusError, HttpRateLimitError, httpx.TransportError)
+            ),
             stop=stop_after_attempt(3),
             wait=self._wait,
             reraise=True,
@@ -109,7 +115,9 @@ class HttpClient:
         with self._client.stream("GET", url, params=params, headers=headers) as response:
             if response.status_code == 304:
                 return None
-            if response.status_code == 429 or response.status_code >= 500:
+            if response.status_code == 429:
+                raise HttpRateLimitError(f"HTTP {response.status_code}")
+            if response.status_code >= 500:
                 raise _RetryableHttpStatusError(f"HTTP {response.status_code}")
             if response.status_code >= 400:
                 raise HttpStatusError(f"HTTP {response.status_code}")

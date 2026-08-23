@@ -80,6 +80,8 @@ class Settings(BaseSettings):
     crawl_max_pages_per_run: int = 10
     crawl_max_response_bytes: int = 5 * 1024 * 1024
     crawl_user_agent: str = "jobRadar/1.0 (personal job monitor; contact@example.com)"
+    source_failure_threshold: int = Field(default=5, ge=1)
+    collection_drop_ratio: float = Field(default=0.8, ge=0, le=1)
 
     @field_validator("app_base_url")
     @classmethod

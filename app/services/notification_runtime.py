@@ -10,6 +10,7 @@ from app.core.config import Settings
 from app.models import PushSubscription
 from app.notifications import KakaoChannel, NotificationPayload, SendResult, WebPushChannel
 from app.repositories import AppSettingRepository, PushSubscriptionRepository
+from app.services.crawl_health import OperationalAlert
 from app.services.dispatcher import DispatchSettings, DispatchSummary, NotificationDispatcher
 from app.services.kakao import (
     EncryptedTokenCipher,
@@ -62,6 +63,23 @@ class NotificationRuntime:
             self._send_reauth_notice(session, self._web_push_channel(session))
         finally:
             client.close()
+
+    def send_operational_alert(self, session: Session, alert: OperationalAlert) -> None:
+        """수집 장애를 공고 알림 이력과 섞지 않고 활성 브라우저에 전달한다."""
+        channel = self._web_push_channel(session)
+        if channel is None:
+            return
+        result = channel.send(
+            NotificationPayload(
+                title=alert.title,
+                body=alert.body,
+                url=f"{self.settings.app_base_url}{alert.path}",
+                items=(),
+                tag=alert.tag,
+            )
+        )
+        _apply_web_push_result(session, result)
+        session.commit()
 
     def _web_push_channel(self, session: Session) -> WebPushChannel | None:
         if not self.settings.vapid_enabled:

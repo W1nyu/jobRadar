@@ -2,6 +2,7 @@
 
 from app.core.config import Settings
 from app.crawlers.base import CrawlSource
+from app.crawlers.errors import CrawlAuthenticationError
 from app.source_catalog import get_builtin_source_definition
 
 
@@ -9,7 +10,7 @@ class UnknownBuiltinSourceError(LookupError):
     """CLI가 등록하지 않은 기본 소스 slug를 요청한 경우."""
 
 
-class MissingCrawlCredentialError(ValueError):
+class MissingCrawlCredentialError(CrawlAuthenticationError):
     """공식 API 소스에 필요한 선택형 키가 비어 있는 경우."""
 
 

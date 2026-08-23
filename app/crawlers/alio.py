@@ -8,10 +8,11 @@ from datetime import datetime
 from typing import Any
 
 from app.crawlers.base import BaseCrawler, RawJob, RawPage
+from app.crawlers.errors import CrawlSchemaError
 from app.crawlers.registry import register_crawler
 
 
-class AlioApiError(ValueError):
+class AlioApiError(CrawlSchemaError):
     """잡알리오 공개 목록 응답이 계약과 다를 때 발생한다."""
 
 
