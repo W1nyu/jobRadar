@@ -22,7 +22,7 @@
   <thead><tr><th>공고</th><th>채널</th><th>상태</th><th>예약 시각</th><th>발송 시각</th><th>시도</th><th>오류</th></tr></thead>
   <tbody>{% for notification in history.notifications %}<tr>
     <td><a href="/admin/jobs/{{ notification.job_posting_id }}">{{ notification.job_posting.title }}</a><small>{{ notification.job_posting.source.name }}</small></td>
-    <td>{{ notification.channel }}</td><td>{{ notification.status }}</td><td>{{ notification.scheduled_at or "즉시" }}</td><td>{{ notification.sent_at or "-" }}</td><td>{{ notification.attempt_count }}</td><td>{{ notification.payload.get("delivery_error", "-") }}</td>
+    <td>{{ notification.channel }}</td><td>{{ notification.status }}</td><td>{{ notification.scheduled_at | kst if notification.scheduled_at else "즉시" }}</td><td>{{ notification.sent_at | kst if notification.sent_at else "-" }}</td><td>{{ notification.attempt_count }}</td><td>{{ notification.payload.get("delivery_error", "-") }}</td>
   </tr>{% else %}<tr><td colspan="7">아직 알림 이력이 없습니다.</td></tr>{% endfor %}</tbody>
 </table></div></section>
 {% endblock %}

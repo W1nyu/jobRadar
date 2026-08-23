@@ -9,7 +9,7 @@
 {% if dashboard.worker_is_stale %}
 <p class="notice error">워커 하트비트가 15분 이상 갱신되지 않았습니다.</p>
 {% else %}
-<p class="notice success">워커 하트비트: {{ dashboard.worker_heartbeat_at }}</p>
+<p class="notice success">워커 하트비트: {{ dashboard.worker_heartbeat_at | kst }}</p>
 {% endif %}
 {% if dashboard.kakao_reauth_required %}
 <p class="notice error">카카오 재인증이 필요합니다. {{ dashboard.kakao_reauth_error or "" }} <a href="/admin/kakao/connect">카카오 다시 연결</a></p>
@@ -33,7 +33,7 @@
       <tr>
         <td>{{ item.source.name }}</td>
         <td>{{ "활성" if item.source.is_active else "중지" }}</td>
-        <td>{{ item.source.last_success_at or "성공 이력 없음" }}</td>
+        <td>{{ item.source.last_success_at | kst if item.source.last_success_at else "성공 이력 없음" }}</td>
         <td>{{ item.source.consecutive_failures }}회</td>
         <td>{{ item.items_fetched_24h }}건</td>
         <td>{{ item.latest_run.error_message if item.latest_run and item.latest_run.error_message else "-" }}</td>
@@ -54,7 +54,7 @@
       <tbody>
       {% for run in dashboard.recent_runs %}
       <tr>
-        <td>{{ run.started_at }}</td><td>{{ run.source.name }}</td><td>{{ run.status }}</td>
+        <td>{{ run.started_at | kst }}</td><td>{{ run.source.name }}</td><td>{{ run.status }}</td>
         <td>{{ run.items_fetched }}</td><td>{{ run.error_message or "-" }}</td>
       </tr>
       {% else %}

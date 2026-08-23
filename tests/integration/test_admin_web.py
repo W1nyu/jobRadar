@@ -161,6 +161,32 @@ def test_대시보드는_실패이력과_15분_지난_워커하트비트_경고�
 
 
 @pytest.mark.integration
+def test_대시보드는_수집_시각을_한국_표준시로_표시한다(
+    client: TestClient, db_session: Session
+) -> None:
+    collected_at = datetime(2026, 8, 22, 15, 30, tzinfo=UTC)
+    source = _source()
+    source.last_success_at = collected_at
+    db_session.add(source)
+    db_session.flush()
+    db_session.add(
+        CrawlRun(
+            source_id=source.id,
+            trigger=CrawlTrigger.MANUAL,
+            status=CrawlStatus.SUCCESS,
+            started_at=collected_at,
+        )
+    )
+    db_session.flush()
+
+    response = client.get("/admin")
+
+    assert response.status_code == 200
+    assert response.text.count("2026-08-23 00:30 KST") >= 2
+    assert "표시 시각: KST (UTC+9)" in response.text
+
+
+@pytest.mark.integration
 def test_소스_생성은_다음_스케줄러_동기화에서_읽을_활성행을_만든다(
     client: TestClient, db_session: Session
 ) -> None:

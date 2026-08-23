@@ -27,7 +27,7 @@
       <thead><tr><th>공고</th><th>회사</th><th>소스</th><th>마감</th><th>상태</th></tr></thead>
       <tbody>
       {% for posting in job_page.items %}
-      <tr><td><a href="/admin/jobs/{{ posting.id }}">{{ posting.title }}</a></td><td>{{ posting.company or "-" }}</td><td>{{ posting.source.name }}</td><td>{{ posting.deadline_at or "-" }}</td><td>{{ "진행 중" if posting.is_open else "마감" }}</td></tr>
+      <tr><td><a href="/admin/jobs/{{ posting.id }}">{{ posting.title }}</a></td><td>{{ posting.company or "-" }}</td><td>{{ posting.source.name }}</td><td>{{ posting.deadline_at | kst if posting.deadline_at else "-" }}</td><td>{{ "진행 중" if posting.is_open else "마감" }}</td></tr>
       {% else %}<tr><td colspan="5">조건에 맞는 공고가 없습니다.</td></tr>{% endfor %}
       </tbody>
     </table>

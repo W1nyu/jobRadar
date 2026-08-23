@@ -110,7 +110,7 @@ def _matched_postings(session: Session, *, count: int, now: datetime) -> list[Jo
 def test_다섯_소스의_신규_매칭은_채널별_한번의_배치로_전송되고_중복되지_않는다(
     db_session: Session,
 ) -> None:
-    now = datetime(2026, 8, 22, 3, 0, tzinfo=UTC)
+    now = datetime(2099, 8, 22, 3, 0, tzinfo=UTC)
     postings = _matched_postings(db_session, count=5, now=now)
     channel = RecordingChannel()
     dispatcher = NotificationDispatcher(
@@ -140,7 +140,7 @@ def test_다섯_소스의_신규_매칭은_채널별_한번의_배치로_전송�
 
 @pytest.mark.integration
 def test_방해금지_시간에는_큐잉하고_종료시각_이후에_전송한다(db_session: Session) -> None:
-    quiet_now = datetime(2026, 8, 22, 14, 30, tzinfo=UTC)  # KST 23:30
+    quiet_now = datetime(2099, 8, 22, 14, 30, tzinfo=UTC)  # KST 23:30
     posting = _matched_postings(db_session, count=1, now=quiet_now)[0]
     channel = RecordingChannel()
     dispatcher = NotificationDispatcher(
@@ -157,10 +157,10 @@ def test_방해금지_시간에는_큐잉하고_종료시각_이후에_전송한
     assert queued.queued == 1
     assert notification is not None
     assert notification.status is NotificationStatus.PENDING
-    assert notification.scheduled_at == datetime(2026, 8, 22, 23, 0, tzinfo=UTC)
+    assert notification.scheduled_at == datetime(2099, 8, 22, 23, 0, tzinfo=UTC)
     assert channel.payloads == []
 
-    sent = dispatcher.dispatch(now=datetime(2026, 8, 22, 23, 1, tzinfo=UTC))  # KST 08:01
+    sent = dispatcher.dispatch(now=datetime(2099, 8, 22, 23, 1, tzinfo=UTC))  # KST 08:01
 
     assert sent.sent == 1
     assert len(channel.payloads) == 1

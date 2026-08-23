@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import json
 import secrets
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 from urllib.parse import unquote, urlencode, urlsplit
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -50,6 +52,19 @@ _DEFAULT_KEYWORD_KIND_FORM = Form(KeywordKind.INCLUDE)
 _DEFAULT_MATCH_MODE_FORM = Form(MatchMode.SUBSTRING)
 _DEFAULT_TARGET_FIELDS_FORM = Form(["title", "description"])
 _DEFAULT_WEIGHT_FORM = Form(1)
+_KST = ZoneInfo("Asia/Seoul")
+
+
+def format_kst(value: datetime | None) -> str:
+    """DB의 UTC 시각을 관리 화면용 한국 표준시 문자열로 변환한다."""
+    if value is None:
+        return "-"
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    return value.astimezone(_KST).strftime("%Y-%m-%d %H:%M KST")
+
+
+templates.env.filters["kst"] = format_kst
 
 
 class AdminLoginRequired(Exception):
