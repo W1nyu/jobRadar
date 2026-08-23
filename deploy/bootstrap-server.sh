@@ -33,7 +33,7 @@ runuser -u "${app_user}" -- git -C "${app_dir}" config core.filemode false
 runuser -u "${app_user}" -- pipx install --force uv
 install -d -o "${app_user}" -g "${app_user}" -m 0755 "${uv_python_dir}"
 runuser -u "${app_user}" -- env UV_PYTHON_INSTALL_DIR="${uv_python_dir}" \
-    "${uv_bin}" python install 3.12
+    "${uv_bin}" python install --directory "${app_dir}" 3.12
 rm -rf "${app_dir}/.venv"
 
 if ! swapon --show=NAME --noheadings | grep -q '^/swapfile$'; then
