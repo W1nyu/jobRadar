@@ -29,4 +29,11 @@ runuser -u "${app_user}" -- env UV_PYTHON_INSTALL_DIR="${uv_python_dir}" \
 systemctl daemon-reload
 systemctl restart jobradar-api.service jobradar-worker.service
 systemctl --no-pager --full status jobradar-api.service jobradar-worker.service
-curl --fail --silent --show-error http://127.0.0.1:8000/readyz >/dev/null
+for _ in $(seq 1 10); do
+    if curl --fail --silent --show-error http://127.0.0.1:8000/readyz >/dev/null; then
+        exit 0
+    fi
+    sleep 1
+done
+echo "API readiness 확인에 실패했습니다." >&2
+exit 1

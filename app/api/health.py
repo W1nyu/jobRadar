@@ -6,7 +6,11 @@ DB 연결까지 확인하는 `/readyz`는 M2에서 추가한다.
 
 from importlib.metadata import PackageNotFoundError, version
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+
+from app.core.db import create_engine_for_settings
 
 router = APIRouter(tags=["health"])
 
@@ -25,3 +29,17 @@ def healthz(request: Request) -> dict[str, str]:
         "version": _app_version(),
         "env": request.app.state.settings.app_env,
     }
+
+
+@router.get("/readyz", summary="DB 준비 상태 확인")
+def readyz(request: Request) -> dict[str, str]:
+    """DB 연결과 최소 질의를 성공할 수 있을 때만 준비 상태를 반환한다."""
+    engine = create_engine_for_settings(request.app.state.settings)
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=503, detail="database unavailable") from exc
+    finally:
+        engine.dispose()
+    return {"status": "ready"}

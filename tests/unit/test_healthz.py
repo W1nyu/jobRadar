@@ -1,7 +1,11 @@
 """헬스체크 엔드포인트 동작 검증."""
 
+from __future__ import annotations
+
+import pytest
 from fastapi.testclient import TestClient
 
+from app.api import health
 from app.core.config import Settings
 from app.main import create_app
 
@@ -21,6 +25,37 @@ def test_healthz는_200과_ok를_반환한다() -> None:
 
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
+
+
+def test_readyz는_DB_연결까지_확인한다(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeConnection:
+        def __enter__(self) -> FakeConnection:
+            return self
+
+        def __exit__(self, *_: object) -> None:
+            return None
+
+        def execute(self, statement: object) -> None:
+            assert str(statement) == "SELECT 1"
+
+    class FakeEngine:
+        def connect(self) -> FakeConnection:
+            return FakeConnection()
+
+        def dispose(self) -> None:
+            return None
+
+    monkeypatch.setattr(
+        health,
+        "create_engine_for_settings",
+        lambda _: FakeEngine(),
+        raising=False,
+    )
+
+    response = build_client().get("/readyz")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ready"
 
 
 def test_루트_접속은_관리자_화면으로_이동한다() -> None:
