@@ -26,6 +26,8 @@ runuser -u "${app_user}" -- env UV_PYTHON_INSTALL_DIR="${uv_python_dir}" \
     "${uv_bin}" sync --frozen --no-dev --directory "${app_dir}"
 runuser -u "${app_user}" -- env UV_PYTHON_INSTALL_DIR="${uv_python_dir}" \
     "${uv_bin}" run --directory "${app_dir}" alembic upgrade head
+runuser -u "${app_user}" -- env UV_PYTHON_INSTALL_DIR="${uv_python_dir}" \
+    "${uv_bin}" run --directory "${app_dir}" python -m app.seed
 
 install -m 0644 "${app_dir}/deploy/jobradar-api.service" /etc/systemd/system/jobradar-api.service
 install -m 0644 "${app_dir}/deploy/jobradar-worker.service" /etc/systemd/system/jobradar-worker.service
