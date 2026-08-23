@@ -4,7 +4,10 @@
 OS 환경변수가 결과를 바꾸면 테스트가 환경에 따라 달라지기 때문이다.
 """
 
+from pathlib import Path
+
 import pytest
+from dotenv import dotenv_values
 from pydantic import ValidationError
 
 from app.core.config import Settings
@@ -85,6 +88,17 @@ def test_기본값은_운영이_아니라_개발이다() -> None:
 
     assert settings.app_env == "development"
     assert settings.is_production is False
+
+
+def test_환경변수_예시는_그대로_읽을_수_있다() -> None:
+    """복사한 `.env`가 어떤 로더에서도 설정값으로 안전하게 읽히는지 확인한다."""
+    example_path = Path(__file__).parents[2] / ".env.example"
+    values = {key: value for key, value in dotenv_values(example_path).items() if value is not None}
+
+    settings = Settings(_env_file=None, **values)
+
+    assert settings.app_env == "development"
+    assert settings.log_json is False
 
 
 def test_데이터베이스_연결과_풀_설정을_환경변수로_받는다() -> None:

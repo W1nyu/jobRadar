@@ -74,9 +74,10 @@ install -m 0644 "${app_dir}/deploy/jobradar-api.service" /etc/systemd/system/job
 install -m 0644 "${app_dir}/deploy/jobradar-worker.service" /etc/systemd/system/jobradar-worker.service
 install -m 0644 "${app_dir}/deploy/jobradar-backup.service" /etc/systemd/system/jobradar-backup.service
 install -m 0644 "${app_dir}/deploy/jobradar-backup.timer" /etc/systemd/system/jobradar-backup.timer
-chmod 0750 \
+chmod 0755 \
     "${app_dir}/deploy/backup.sh" \
-    "${app_dir}/deploy/restore-verify.sh" \
+    "${app_dir}/deploy/restore-verify.sh"
+chmod 0750 \
     "${app_dir}/deploy/deploy.sh" \
     "${app_dir}/deploy/bootstrap-server.sh" \
     "${app_dir}/deploy/enable-https.sh"
