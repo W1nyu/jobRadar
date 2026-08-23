@@ -3,26 +3,49 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#12355b">
+    <meta name="theme-color" content="#000000">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>{% block title %}jobRadar{% endblock %}</title>
     <link rel="stylesheet" href="/static/admin.css">
     <link rel="manifest" href="/static/manifest.webmanifest">
     <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
   </head>
-  <body>
+  <body class="app-shell">
     <header class="topbar">
-      <a class="brand" href="/admin">jobRadar</a>
-      <nav aria-label="관리 메뉴">
-        <a href="/admin/jobs">공고</a>
-        <a href="/admin/sources">소스</a>
-        <a href="/admin/keywords">키워드</a>
-        <a href="/admin/notifications">알림</a>
-      </nav>
-      <small>표시 시각: KST (UTC+9)</small>
-      <form method="post" action="/logout"><button class="text-button" type="submit">로그아웃</button></form>
+      <div class="topbar-content">
+        <a class="brand" href="/admin" aria-label="jobRadar 대시보드">
+          <span class="brand-mark" aria-hidden="true">JR</span>
+          <span>jobRadar</span>
+        </a>
+        <nav class="desktop-nav" aria-label="관리 메뉴">
+          <a href="/admin"{% if request.url.path == '/admin' %} aria-current="page"{% endif %}>개요</a>
+          <a href="/admin/jobs"{% if request.url.path.startswith('/admin/jobs') %} aria-current="page"{% endif %}>공고</a>
+          <a href="/admin/sources"{% if request.url.path.startswith('/admin/sources') %} aria-current="page"{% endif %}>소스</a>
+          <a href="/admin/keywords"{% if request.url.path.startswith('/admin/keywords') %} aria-current="page"{% endif %}>키워드</a>
+          <a href="/admin/notifications"{% if request.url.path.startswith('/admin/notifications') %} aria-current="page"{% endif %}>알림</a>
+        </nav>
+        <small class="topbar-time">표시 시각: KST (UTC+9)</small>
+        <form method="post" action="/logout"><button class="text-button" type="submit">로그아웃</button></form>
+        <details class="mobile-menu">
+          <summary aria-label="관리 메뉴 열기"><span aria-hidden="true"></span><span aria-hidden="true"></span></summary>
+          <nav aria-label="모바일 관리 메뉴">
+            <a href="/admin"{% if request.url.path == '/admin' %} aria-current="page"{% endif %}>개요</a>
+            <a href="/admin/jobs"{% if request.url.path.startswith('/admin/jobs') %} aria-current="page"{% endif %}>공고</a>
+            <a href="/admin/sources"{% if request.url.path.startswith('/admin/sources') %} aria-current="page"{% endif %}>소스</a>
+            <a href="/admin/keywords"{% if request.url.path.startswith('/admin/keywords') %} aria-current="page"{% endif %}>키워드</a>
+            <a href="/admin/notifications"{% if request.url.path.startswith('/admin/notifications') %} aria-current="page"{% endif %}>알림</a>
+          </nav>
+        </details>
+      </div>
     </header>
+    <nav class="subnav" aria-label="현재 화면">
+      <div class="subnav-content">
+        <a class="subnav-title" href="/admin">{% block section_label %}개요{% endblock %}</a>
+        <div class="subnav-actions">{% block subnav_actions %}<a class="subnav-link" href="/admin/jobs">공고 보기</a>{% endblock %}</div>
+      </div>
+    </nav>
     <main class="container">{% block content %}{% endblock %}</main>
+    <footer class="site-footer"><div>jobRadar · 개인용 채용공고 모니터</div><div>표시 시각: KST (UTC+9)</div></footer>
     {% block scripts %}{% endblock %}
   </body>
 </html>

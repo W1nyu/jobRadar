@@ -1,12 +1,34 @@
 {% extends "base.html" %}
 {% block title %}소스 | jobRadar{% endblock %}
+{% block section_label %}소스{% endblock %}
+{% block subnav_actions %}<a class="subnav-link" href="/admin/sources/new">소스 추가</a>{% endblock %}
 {% block content %}
-<section class="page-heading action-heading"><div><p class="eyebrow">SOURCES</p><h1>수집 소스</h1><p>API 키와 토큰은 환경변수에만 두고, 여기서는 공개 수집 정책만 관리합니다.</p></div><a class="button-link" href="/admin/sources/new">소스 추가</a></section>
-<section class="card"><div class="table-wrap"><table>
-  <thead><tr><th>이름</th><th>크롤러</th><th>주기</th><th>요청 제한</th><th>상태</th><th>작업</th></tr></thead>
-  <tbody>{% for source in sources %}<tr>
-    <td>{{ source.name }}<small>{{ source.base_url }}</small></td><td>{{ source.crawler_key }} / {{ source.fetch_strategy }}</td><td>{{ source.interval_minutes }}분</td><td>{{ source.rate_limit_per_min }}/분</td><td>{{ "활성" if source.is_active else "중지" }}</td>
-    <td class="actions"><a href="/admin/sources/{{ source.id }}/edit">수정</a><form hx-post="/admin/sources/{{ source.id }}/crawl" hx-target="#crawl-result-{{ source.id }}" hx-swap="innerHTML"><button type="submit">지금 수집</button></form><span id="crawl-result-{{ source.id }}"></span><form method="post" action="/admin/sources/{{ source.id }}/delete" onsubmit="return confirm('이 소스를 삭제할까요?')"><button class="danger" type="submit">삭제</button></form></td>
-  </tr>{% else %}<tr><td colspan="6">등록된 소스가 없습니다.</td></tr>{% endfor %}</tbody>
-</table></div></section>
+<section class="page-hero">
+  <div class="hero-inner">
+    <p class="eyebrow">SOURCES</p>
+    <h1>기회를 찾는 경로.</h1>
+    <p class="hero-copy">공개 수집 정책을 지키며, 각 소스의 주기와 상태를 관리합니다.</p>
+    <div class="hero-actions"><a class="button-link" href="/admin/sources/new">소스 추가</a></div>
+  </div>
+</section>
+
+<section class="source-grid" aria-label="등록된 수집 소스">
+  {% for source in sources %}
+  <article class="source-card">
+    <div class="source-card-top">
+      <div><p class="eyebrow">{{ source.crawler_key }} · {{ source.fetch_strategy }}</p><h2>{{ source.name }}</h2><p class="source-card-url">{{ source.base_url }}</p></div>
+      <span class="job-state{% if not source.is_active %} job-state--closed{% endif %}">{{ "활성" if source.is_active else "중지" }}</span>
+    </div>
+    <p class="source-facts"><span>수집 주기 <strong>{{ source.interval_minutes }}분</strong></span><span>요청 제한 <strong>{{ source.rate_limit_per_min }}/분</strong></span></p>
+    <div class="actions">
+      <a class="button-link button-secondary" href="/admin/sources/{{ source.id }}/edit">수정</a>
+      <form hx-post="/admin/sources/{{ source.id }}/crawl" hx-target="#crawl-result-{{ source.id }}" hx-swap="innerHTML"><button type="submit">지금 수집</button></form>
+      <span id="crawl-result-{{ source.id }}"></span>
+      <form method="post" action="/admin/sources/{{ source.id }}/delete" onsubmit="return confirm('이 소스를 삭제할까요?')"><button class="danger" type="submit">삭제</button></form>
+    </div>
+  </article>
+  {% else %}
+  <section class="utility-panel"><h2>등록된 소스가 없습니다.</h2><p>새 소스를 추가하면 공개된 채용공고를 수집할 수 있습니다.</p></section>
+  {% endfor %}
+</section>
 {% endblock %}

@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% block title %}{{ "소스 수정" if source else "소스 추가" }} | jobRadar{% endblock %}
+{% block section_label %}소스{% endblock %}
+{% block subnav_actions %}<a class="subnav-link" href="/admin/sources">목록으로</a>{% endblock %}
 {% block content %}
-<p><a href="/admin/sources">← 소스 목록</a></p>
-<section class="page-heading"><p class="eyebrow">SOURCE</p><h1>{{ "소스 수정" if source else "소스 추가" }}</h1><p>비밀 키는 환경변수에만 저장하며, 이 화면의 JSON 설정에는 넣을 수 없습니다.</p></section>
+<section class="page-hero page-hero--parchment"><div class="hero-inner"><p class="eyebrow">SOURCE CONFIGURATION</p><h1>{{ "소스 수정" if source else "소스 추가" }}</h1><p class="hero-copy">비밀 키는 환경변수에만 저장하며, 이 화면의 JSON 설정에는 넣을 수 없습니다.</p><div class="hero-actions"><a class="button-link button-secondary" href="/admin/sources">목록으로</a></div></div></section>
 {% if error %}<p class="notice error">{{ error }}</p>{% endif %}
-<section class="card"><form method="post" action="{{ '/admin/sources/' ~ source.id if source else '/admin/sources' }}" class="form-grid">
+<section class="panel"><form method="post" action="{{ '/admin/sources/' ~ source.id if source else '/admin/sources' }}" class="form-grid">
   {% set current = values if values else source %}
   <label>slug<input name="slug" value="{{ current.slug if current else '' }}" required></label><label>표시 이름<input name="name" value="{{ current.name if current else '' }}" required></label>
   <label>크롤러 키<select name="crawler_key">{% for key, strategy in crawler_choices %}<option value="{{ key }}" {% if current and current.crawler_key == key %}selected{% endif %}>{{ key }} ({{ strategy }})</option>{% endfor %}</select></label>

@@ -1,10 +1,21 @@
 {% extends "base.html" %}
 {% block title %}키워드 | jobRadar{% endblock %}
+{% block section_label %}키워드{% endblock %}
 {% block content %}
-<section class="page-heading"><p class="eyebrow">KEYWORDS</p><h1>키워드</h1><p>관심·제외 키워드와 매칭 방식을 관리합니다.</p></section>
+<section class="page-hero page-hero--dark">
+  <div class="hero-inner">
+    <p class="eyebrow">SIGNALS</p>
+    <h1>나에게 중요한 단어.</h1>
+    <p class="hero-copy">관심사와 제외 조건을 정교하게 설정해, 더 관련성 높은 공고만 남깁니다.</p>
+  </div>
+</section>
 {% if error %}<p class="notice error">{{ error }}</p>{% endif %}
-<section class="card"><h2>키워드 추가</h2><form method="post" action="/admin/keywords" class="keyword-form">{% include "_keyword_fields.html" %}<button type="submit">추가</button></form></section>
-<section class="card"><h2>등록된 키워드</h2>{% for keyword in keywords %}<form method="post" action="/admin/keywords/{{ keyword.id }}" class="keyword-form">
-  {% with item=keyword %}{% include "_keyword_fields.html" %}{% endwith %}<button type="submit">저장</button>
-</form><form method="post" action="/admin/keywords/{{ keyword.id }}/delete" class="inline-form" onsubmit="return confirm('이 키워드를 삭제할까요?')"><button class="danger" type="submit">삭제</button></form>{% else %}<p>등록된 키워드가 없습니다.</p>{% endfor %}</section>
+<section class="utility-panel"><h2>키워드 추가</h2><p>문구와 매칭 범위를 설정하면 다음 수집부터 반영됩니다.</p><form method="post" action="/admin/keywords" class="keyword-form">{% include "_keyword_fields.html" %}<button type="submit">추가</button></form></section>
+<section class="section-heading"><h2>등록된 키워드</h2><p>필요할 때 조정하고 바로 저장하세요.</p></section>
+<section class="panel">
+{% for keyword in keywords %}
+  <form method="post" action="/admin/keywords/{{ keyword.id }}" class="keyword-form">{% with item=keyword %}{% include "_keyword_fields.html" %}{% endwith %}<button type="submit">저장</button></form>
+  <div class="keyword-row-actions"><form method="post" action="/admin/keywords/{{ keyword.id }}/delete" class="inline-form" onsubmit="return confirm('이 키워드를 삭제할까요?')"><button class="danger" type="submit">삭제</button></form></div>
+{% else %}<p>등록된 키워드가 없습니다.</p>{% endfor %}
+</section>
 {% endblock %}
