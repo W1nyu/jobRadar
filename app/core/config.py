@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     quiet_hours_start: str = "23:00"
     quiet_hours_end: str = "08:00"
     timezone: str = "Asia/Seoul"
-    notification_lookback_minutes: int = 10
+    notification_lookback_minutes: int = 24 * 60
 
     # ---- 데이터베이스 ----
     # Windows 개발 Docker의 IPv6 localhost 우선 해석으로 인한 연결 지연을 피하려고 IPv4 loopback을 쓴다.

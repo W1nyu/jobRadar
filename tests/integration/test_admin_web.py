@@ -262,3 +262,22 @@ def test_소스와_키워드는_관리_화면에서_수정하고_삭제할_수_�
     assert client.post(f"/admin/keywords/{keyword.id}/delete").status_code == 303
     assert db_session.get(Source, source.id) is None
     assert db_session.get(Keyword, keyword.id) is None
+
+
+@pytest.mark.integration
+def test_관리자는_알림을_끄고_수동_발송을_요청할_수_있다(
+    client: TestClient, db_session: Session
+) -> None:
+    response = client.get("/admin/notifications")
+    assert response.status_code == 200
+    assert "자동 알림: 켜짐" in response.text
+
+    disabled = client.post("/admin/notifications/enabled", data={"enabled": "false"})
+    assert disabled.status_code == 303
+
+    history = client.get("/admin/notifications")
+    assert "자동 알림: 꺼짐" in history.text
+
+    dispatched = client.post("/admin/notifications/dispatch")
+    assert dispatched.status_code == 303
+    assert dispatched.headers["location"] == "/admin/notifications?dispatch=disabled"

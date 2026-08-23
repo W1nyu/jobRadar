@@ -85,8 +85,10 @@ class WorkerScheduler:
         if self.dispatch_notifications is not None:
             self.scheduler.add_job(
                 self.dispatch_notifications,
-                trigger="interval",
-                seconds=60,
+                trigger="cron",
+                hour=9,
+                minute=0,
+                timezone=ZoneInfo(self.timezone),
                 id="notification-dispatch",
                 replace_existing=True,
                 coalesce=True,

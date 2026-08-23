@@ -71,11 +71,14 @@ class NotificationDispatcher:
         self.notifications = NotificationRepository(session)
         self.subscriptions = PushSubscriptionRepository(session)
 
-    def dispatch(self, *, now: datetime | None = None) -> DispatchSummary:
-        """신규 공고를 큐잉하고 전송 가능 시점의 이력을 채널별 한 번씩 발송한다."""
+    def dispatch(self, *, now: datetime | None = None, force: bool = False) -> DispatchSummary:
+        """신규 공고를 큐잉하고 전송 가능 시점의 이력을 채널별 한 번씩 발송한다.
+
+        관리자의 수동 발송은 ``force=True``으로 방해금지 시간도 즉시 발송한다.
+        """
         now = now or datetime.now(UTC)
         queued = sent = failed = 0
-        scheduled_at = _quiet_end(now, self.settings)
+        scheduled_at = None if force else _quiet_end(now, self.settings)
         for channel in self.channels:
             queued += self._queue_new(channel.name, now=now, scheduled_at=scheduled_at)
         self.session.commit()

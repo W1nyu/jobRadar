@@ -40,6 +40,8 @@ from app.services.kakao import (
 )
 from app.services.keywords import KeywordConflictError, KeywordNotFoundError, KeywordService
 from app.services.notification_history import NotificationHistoryService
+from app.services.notification_preferences import NotificationPreferenceService
+from app.services.notification_runtime import NotificationRuntime
 
 templates = Jinja2Templates(directory=str(Path(__file__).parents[2] / "templates"))
 auth_router = APIRouter()
@@ -452,10 +454,40 @@ def notification_history(request: Request, session: SessionDependency) -> HTMLRe
         "notifications.html",
         {
             "history": NotificationHistoryService(session).get(),
+            "preferences": NotificationPreferenceService(session).get(),
             "kakao_enabled": request.app.state.settings.kakao_enabled,
             "oauth_status": request.query_params.get("oauth"),
             "oauth_reason": request.query_params.get("reason"),
+            "setting_status": request.query_params.get("setting"),
+            "dispatch_status": request.query_params.get("dispatch"),
         },
+    )
+
+
+@admin_router.post("/notifications/enabled")
+def notification_enabled(
+    request: Request, session: SessionDependency, enabled: bool = Form()
+) -> RedirectResponse:
+    """카카오와 브라우저의 채용공고 자동·수동 알림을 함께 켜거나 끈다."""
+    require_admin(request)
+    NotificationPreferenceService(session).set_enabled(enabled)
+    state = "enabled" if enabled else "disabled"
+    return RedirectResponse(
+        url=f"/admin/notifications?setting={state}", status_code=status.HTTP_303_SEE_OTHER
+    )
+
+
+@admin_router.post("/notifications/dispatch")
+def notification_dispatch_now(request: Request, session: SessionDependency) -> RedirectResponse:
+    """예약 시각과 방해금지를 건너뛰고 현재 신규 공고를 즉시 발송한다."""
+    require_admin(request)
+    if not NotificationPreferenceService(session).get().enabled:
+        return RedirectResponse(
+            url="/admin/notifications?dispatch=disabled", status_code=status.HTTP_303_SEE_OTHER
+        )
+    NotificationRuntime(request.app.state.settings).dispatch(session, force=True)
+    return RedirectResponse(
+        url="/admin/notifications?dispatch=sent", status_code=status.HTTP_303_SEE_OTHER
     )
 
 

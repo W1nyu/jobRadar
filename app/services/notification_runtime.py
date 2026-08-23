@@ -18,6 +18,7 @@ from app.services.kakao import (
     KakaoReauthenticationRequired,
     KakaoTokenService,
 )
+from app.services.notification_preferences import NotificationPreferenceService
 
 
 class NotificationRuntime:
@@ -26,8 +27,12 @@ class NotificationRuntime:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
 
-    def dispatch(self, session: Session, *, now: datetime | None = None) -> DispatchSummary:
+    def dispatch(
+        self, session: Session, *, now: datetime | None = None, force: bool = False
+    ) -> DispatchSummary:
         """설정된 채널로 신규 공고를 발송하고 필요하면 카카오 재인증을 Web Push로 알린다."""
+        if not NotificationPreferenceService(session).get().enabled:
+            return DispatchSummary()
         now = now or datetime.now(UTC)
         web_push = self._web_push_channel(session)
         channels = [web_push] if web_push is not None else []
@@ -50,7 +55,7 @@ class NotificationRuntime:
                 lookback_minutes=self.settings.notification_lookback_minutes,
                 app_base_url=self.settings.app_base_url,
             ),
-        ).dispatch(now=now)
+        ).dispatch(now=now, force=force)
 
     def refresh_kakao_tokens(self, session: Session, *, now: datetime | None = None) -> None:
         """매일 잡에서 refresh token을 갱신하고 실패 시 한 번만 Web Push 폴백을 보낸다."""

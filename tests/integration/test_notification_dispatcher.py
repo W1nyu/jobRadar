@@ -164,3 +164,20 @@ def test_방해금지_시간에는_큐잉하고_종료시각_이후에_전송한
 
     assert sent.sent == 1
     assert len(channel.payloads) == 1
+
+
+@pytest.mark.integration
+def test_수동_발송은_방해금지_시간에도_즉시_전송한다(db_session: Session) -> None:
+    quiet_now = datetime(2099, 8, 22, 14, 30, tzinfo=UTC)  # KST 23:30
+    _matched_postings(db_session, count=1, now=quiet_now)
+    channel = RecordingChannel()
+    dispatcher = NotificationDispatcher(
+        db_session,
+        channels=(channel,),
+        settings=DispatchSettings(lookback_minutes=60),
+    )
+
+    summary = dispatcher.dispatch(now=quiet_now, force=True)
+
+    assert summary.sent == 1
+    assert len(channel.payloads) == 1
