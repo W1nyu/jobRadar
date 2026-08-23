@@ -13,6 +13,24 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: jobradar
+          POSTGRES_PASSWORD: jobradar
+          POSTGRES_DB: jobradar
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jobradar -d jobradar"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      APP_BASE_URL: https://example.com
+      SECRET_KEY: ci-test-secret
+      DATABASE_URL: postgresql+psycopg://jobradar:jobradar@127.0.0.1:5432/jobradar
     steps:
       - uses: actions/checkout@v4
 
@@ -24,6 +42,9 @@ jobs:
       - name: Install dependencies
         # .python-version(3.12)을 uv가 읽어 배포 환경과 같은 버전으로 맞춘다
         run: uv sync --frozen
+
+      - name: Apply migrations
+        run: uv run alembic upgrade head
 
       - name: Lint
         run: uv run ruff check .
