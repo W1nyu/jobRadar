@@ -56,6 +56,29 @@ def test_카카오_채널은_나에게_보내기_list_템플릿을_전송한다(
     assert template["contents"][0]["title"] == "데이터 분석가"
 
 
+@respx.mock
+def test_카카오_채널은_단건을_텍스트_템플릿으로_전송한다() -> None:
+    """카카오 list 템플릿은 콘텐츠를 두 건 이상 요구한다."""
+    route = respx.post("https://kapi.kakao.com/v2/api/talk/memo/default/send").mock(
+        return_value=httpx.Response(200, json={"result_code": 0})
+    )
+    payload = _payload()
+    single_payload = NotificationPayload(
+        title="새 채용공고 1건",
+        body="데이터 분석가",
+        url=payload.url,
+        items=payload.items[:1],
+    )
+
+    result = KakaoChannel(access_token="test-access-token").send(single_payload)
+
+    assert result.succeeded is True
+    template = json.loads(parse_qs(route.calls.last.request.content.decode())["template_object"][0])
+    assert template["object_type"] == "text"
+    assert "데이터 분석가" in template["text"]
+    assert template["link"]["web_url"] == single_payload.url
+
+
 def test_웹푸시_410_응답은_구독_비활성화_대상으로_반환한다() -> None:
     def rejected_push(**_: object) -> None:
         raise _PushError(status_code=410)

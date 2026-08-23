@@ -28,7 +28,9 @@ class KakaoChannel:
             response = self.client.post(
                 _SEND_URL,
                 headers={"Authorization": f"Bearer {self.access_token}"},
-                data={"template_object": json.dumps(_list_template(payload), ensure_ascii=False)},
+                data={
+                    "template_object": json.dumps(_message_template(payload), ensure_ascii=False)
+                },
             )
             response.raise_for_status()
             if response.json().get("result_code") != 0:
@@ -41,6 +43,17 @@ class KakaoChannel:
         finally:
             if self._owns_client:
                 self.client.close()
+
+
+def _message_template(payload: NotificationPayload) -> dict[str, object]:
+    """항목 수에 맞춰 카카오 기본 템플릿을 고른다.
+
+    카카오 list 템플릿은 콘텐츠를 최소 두 건 요구한다. 한 건짜리 신규 공고는
+    텍스트 템플릿으로 보내야 실제 운영에서 조용히 발송이 거절되지 않는다.
+    """
+    if len(payload.items) < 2:
+        return _text_template(payload)
+    return _list_template(payload)
 
 
 def _list_template(payload: NotificationPayload) -> dict[str, object]:
@@ -64,6 +77,21 @@ def _list_template(payload: NotificationPayload) -> dict[str, object]:
                 "link": {"web_url": payload.url, "mobile_web_url": payload.url},
             }
         ],
+    }
+
+
+def _text_template(payload: NotificationPayload) -> dict[str, object]:
+    """단건 공고를 카카오 텍스트 템플릿으로 만든다."""
+    item = payload.items[0] if payload.items else None
+    text_parts = [payload.title, payload.body]
+    if item is not None:
+        text_parts.append(_item_description(item.source_name, item.deadline, item.keywords))
+    text = "\n".join(part for part in text_parts if part).strip()[:200]
+    return {
+        "object_type": "text",
+        "text": text,
+        "link": {"web_url": payload.url, "mobile_web_url": payload.url},
+        "button_title": "공고 보기",
     }
 
 
