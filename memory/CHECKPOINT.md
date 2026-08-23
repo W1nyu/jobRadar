@@ -20,12 +20,15 @@
 - `docs/operations.md`에 관측 표와 실제 카카오 OAuth 장애 해결 기록을 시작했고,
   `docs/adr/`에 ADR-01~03을 정리했다.
 
-## 운영 반영 전 확인 사항
+## 운영 반영 검증
 
-1. 이 변경을 커밋·push한 뒤 Azure VM에서 `sudo /opt/jobradar/deploy/deploy.sh`를 실행한다.
-2. 운영 `.env`에 `NOTIFICATION_LOOKBACK_MINUTES`가 있다면 `1440`으로 바꾼다. 없다면 새 코드의
-   기본값(1440)이 적용된다.
-3. `systemctl status jobradar-worker`와 `/admin/notifications`에서 알림 상태·수동 버튼을 확인한다.
+- 커밋 `306f332`를 Azure VM에 배포했다.
+- API·워커가 모두 `active`, `/readyz`가 `{"status":"ready"}`를 반환했다.
+- 운영 `.env`의 `NOTIFICATION_LOOKBACK_MINUTES=1440`을 확인했다.
+- 실행 중인 워커와 같은 설정으로 생성한 알림 작업은 `cron[hour='9', minute='0']`이며,
+  배포 직후 워커 오류 로그는 없었다.
+- `notifications_enabled` 행이 아직 없으므로 기본값인 켜짐이 적용된다. 관리 화면에서 최초로
+  끄거나 켜면 이 설정이 저장된다.
 
 ## Open items
 

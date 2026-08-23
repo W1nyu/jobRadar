@@ -27,7 +27,7 @@ journalctl -u jobradar-worker --since '24 hours ago' -p warning --no-pager
 
 | 날짜(KST) | API/워커 | 메모리 | 24h 수집 실패 | 09:00 카카오 | 09:00 Push | 수동 개입·사유 |
 |---|---|---:|---:|---|---|---|
-| 2026-08-23 | 정상 (M11 검증) | 357 MiB 사용, Swap 0 | 관측 시작 전 | 기능 검증 완료 | 기능 검증 완료 | M12 시작·일일 요약 정책 적용 |
+| 2026-08-23 | 정상 (`/readyz` 확인) | 357 MiB 사용, Swap 0 | 관측 시작 전 | 기능 검증 완료 | 기능 검증 완료 | M12 배포·일일 요약 정책 적용, 워커 오류 없음 |
 
 메모리 예산은 PostgreSQL 250MB, API 120MB, 워커 150MB, Nginx 15MB, OS 200MB 및 여유
 250MB를 기준으로 한다. `MemoryMax` 또는 OOM, 워커 하트비트 15분 초과, 수집 실패율 급증은
