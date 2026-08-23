@@ -25,6 +25,9 @@ if ! id "${app_user}" >/dev/null 2>&1; then
     adduser --system --group --home /home/${app_user} --shell /usr/sbin/nologin "${app_user}"
 fi
 chown -R "${app_user}:${app_user}" "${app_dir}"
+# systemd에서 실행할 셸 스크립트에 chmod를 적용하므로, Windows 작업본에서 온 Git이
+# 실행 비트만으로 pull을 막지 않도록 서버 복제본에서는 이를 추적하지 않는다.
+runuser -u "${app_user}" -- git -C "${app_dir}" config core.filemode false
 # systemd는 ProtectHome으로 /home을 차단한다. Python 런타임은 앱 디렉터리에 둬야
 # .venv의 인터프리터 심볼릭 링크를 서비스가 따라갈 수 있다.
 runuser -u "${app_user}" -- pipx install --force uv
