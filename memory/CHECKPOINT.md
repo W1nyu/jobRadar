@@ -1,42 +1,34 @@
 # Checkpoint — jobRadar 채용공고 모니터링 서비스 — 2026-08-23
 
-## Current status
+## 완료 상태
 
-현재 **M12(운영 안정화 · 포트폴리오 마감)를 진행 중**이다. M0~M11은 완료했고, 30일 운영
-관측의 시작일은 2026-08-23, 종료 확인일은 2026-09-21이다.
+사용자가 요청한 범위에서 **M1~M12 개발·배포 작업이 완료**됐다. 개인 단독 사용이라 M12의 30일
+운영 관측은 완료 조건에서 제외했다. M0의 사람인 API 승인은 선택 소스의 외부 절차로 별도 보류다.
 
 - GitHub 원격: `https://github.com/W1nyu/jobRadar.git`
 - 운영 주소: `https://jobradar.my`
 - 최신 로컬 검증: `pytest` **132개 통과**, `ruff check .`, `ruff format --check .` 통과
-- 아직 남은 M12 DoD: 30일 수동 개입/메모리 관측. README 아키텍처와 ADR 문서 DoD는 완료했다.
+- GitHub Actions: 실행 `32621411424`에서 PostgreSQL 16·마이그레이션·lint·format·전체 테스트 통과
+- 운영 VM: API·워커 `active`, `/readyz` 정상, 자동 채용공고 알림 `KST 09:00` cron 확인
 
-## M12에서 추가한 운영 정책
+## 완성된 알림 정책
 
-- 채용공고 자동 알림은 APScheduler cron으로 매일 **KST 09:00 한 번**만 발송한다.
-- 최근 24시간 신규 매칭을 카카오톡과 Web Push 각각 한 번의 요약으로 보낸다.
-- `/admin/notifications`의 수동 발송은 예약 시각과 방해금지 시간을 우회한다.
-- 같은 화면에서 카카오·Web Push 채용공고 알림을 함께 켜고 끌 수 있다. 꺼진 상태에서는 자동·수동
-  전송 모두 생략된다.
-- `docs/operations.md`에 관측 표와 실제 카카오 OAuth 장애 해결 기록을 시작했고,
-  `docs/adr/`에 ADR-01~03을 정리했다.
+- 자동 채용공고 알림은 카카오톡·Web Push로 매일 KST 09:00 한 번만 요약 발송한다.
+- 수동 발송은 `/admin/notifications`에서 예약 시각과 방해금지를 우회해 즉시 실행한다.
+- 같은 화면에서 두 채널의 채용공고 알림을 함께 켜고 끈다. 꺼진 상태에서는 자동·수동 전송을
+  모두 생략한다.
 
-## 운영 반영 검증
+## 문서
 
-- 커밋 `306f332`를 Azure VM에 배포했다.
-- API·워커가 모두 `active`, `/readyz`가 `{"status":"ready"}`를 반환했다.
-- 운영 `.env`의 `NOTIFICATION_LOOKBACK_MINUTES=1440`을 확인했다.
-- 실행 중인 워커와 같은 설정으로 생성한 알림 작업은 `cron[hour='9', minute='0']`이며,
-  배포 직후 워커 오류 로그는 없었다.
-- `notifications_enabled` 행이 아직 없으므로 기본값인 켜짐이 적용된다. 관리 화면에서 최초로
-  끄거나 켜면 이 설정이 저장된다.
+- 아키텍처·실행 방법: `README.md`
+- 운영 절차·실제 장애 해결 기록: `docs/operations.md`
+- 기술 결정: `docs/adr/`
 
-## Open items
+## 선택적 후속 작업
 
-- 사람인 API 승인과 `SARAMIN_ACCESS_KEY`는 계속 대기 상태다. 승인 뒤 실제 성공 응답 골든 파일을
-  확보한 후 소스로 추가한다.
-- M1의 GitHub Actions 초록불은 원격 Actions 실행 결과를 별도 확인해 기획서의 미완료 DoD를 갱신한다.
-- 2026-09-21까지 운영 관측 표에 메모리·수집 실패율·알림 정확도와 모든 수동 개입 사유를 기록한다.
+사람인 API 승인은 외부 서비스 절차라 계속 대기 상태다. 승인이 나면 성공 응답 골든 파일을 확보해
+별도 소스로 추가할 수 있지만, 현재 운영 기능과 완료 기준에는 포함하지 않는다.
 
 ## Archive
 
-M11 완료 시점은 `memory/checkpoints/2026-08-23-m11-complete.md`에 보관했다.
+M12 진행 시점은 `memory/checkpoints/2026-08-23-m12-in-progress.md`에 보관했다.
