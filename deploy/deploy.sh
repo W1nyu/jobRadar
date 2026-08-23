@@ -26,6 +26,15 @@ runuser -u "${app_user}" -- env UV_PYTHON_INSTALL_DIR="${uv_python_dir}" \
 runuser -u "${app_user}" -- env UV_PYTHON_INSTALL_DIR="${uv_python_dir}" \
     "${uv_bin}" run --directory "${app_dir}" alembic upgrade head
 
+install -m 0644 "${app_dir}/deploy/jobradar-api.service" /etc/systemd/system/jobradar-api.service
+install -m 0644 "${app_dir}/deploy/jobradar-worker.service" /etc/systemd/system/jobradar-worker.service
+install -m 0644 "${app_dir}/deploy/jobradar-backup.service" /etc/systemd/system/jobradar-backup.service
+install -m 0644 "${app_dir}/deploy/jobradar-backup.timer" /etc/systemd/system/jobradar-backup.timer
+install -d -o root -g root -m 0755 /usr/local/lib/jobradar
+install -o root -g root -m 0755 \
+    "${app_dir}/deploy/backup.sh" \
+    "${app_dir}/deploy/restore-verify.sh" \
+    /usr/local/lib/jobradar/
 systemctl daemon-reload
 systemctl restart jobradar-api.service jobradar-worker.service
 systemctl --no-pager --full status jobradar-api.service jobradar-worker.service

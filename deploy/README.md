@@ -23,7 +23,7 @@ sudo bash /opt/jobradar/deploy/deploy.sh
 sudo bash /opt/jobradar/deploy/enable-https.sh jobradar.my <Let's Encrypt 알림 이메일>
 sudo systemctl enable --now jobradar-api jobradar-worker
 sudo systemctl start jobradar-backup.service
-sudo -u postgres /opt/jobradar/deploy/restore-verify.sh /var/backups/jobradar/$(date -u +%F).dump
+sudo -u postgres /usr/local/lib/jobradar/restore-verify.sh /var/backups/jobradar/$(date -u +%F).dump
 ```
 
 복구 리허설은 `jobradar_restore_verify`라는 임시 DB만 만들고 삭제한다. 운영 DB `jobradar`는 수정하지 않는다.
