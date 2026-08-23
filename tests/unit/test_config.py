@@ -22,7 +22,11 @@ def make_settings(**overrides: str) -> Settings:
     return Settings(_env_file=None, **{**REQUIRED, **overrides})
 
 
-def test_필수_변수가_없으면_어떤_변수인지_알려주는_에러가_난다() -> None:
+def test_필수_변수가_없으면_어떤_변수인지_알려주는_에러가_난다(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("APP_BASE_URL", raising=False)
+    monkeypatch.delenv("SECRET_KEY", raising=False)
     with pytest.raises(ValidationError) as exc:
         Settings(_env_file=None, APP_BASE_URL="https://example.com")
 
