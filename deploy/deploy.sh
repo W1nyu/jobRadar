@@ -36,6 +36,7 @@ install -o root -g root -m 0755 \
     "${app_dir}/deploy/restore-verify.sh" \
     /usr/local/lib/jobradar/
 systemctl daemon-reload
+systemctl enable --now jobradar-backup.timer
 systemctl restart jobradar-api.service jobradar-worker.service
 systemctl --no-pager --full status jobradar-api.service jobradar-worker.service
 for _ in $(seq 1 10); do

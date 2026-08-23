@@ -86,7 +86,7 @@ chmod 0750 \
     "${app_dir}/deploy/bootstrap-server.sh" \
     "${app_dir}/deploy/enable-https.sh"
 systemctl daemon-reload
-systemctl enable jobradar-backup.timer
+systemctl enable --now jobradar-backup.timer
 
 ufw default deny incoming
 ufw default allow outgoing
