@@ -98,6 +98,7 @@ EOF
 sshd -t
 systemctl reload ssh
 
+install -d -m 0755 /etc/systemd/journald.conf.d
 cat >/etc/systemd/journald.conf.d/90-jobradar.conf <<'EOF'
 [Journal]
 SystemMaxUse=200M
