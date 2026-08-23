@@ -64,6 +64,7 @@ systemctl restart postgresql
 install -d -m 0755 /var/www/jobradar-acme
 install -d -o postgres -g postgres -m 0700 /var/backups/jobradar
 install -m 0644 "${app_dir}/deploy/nginx-rate-limit.conf" /etc/nginx/conf.d/jobradar-rate-limit.conf
+install -m 0644 "${app_dir}/deploy/nginx-proxy-headers.conf" /etc/nginx/conf.d/jobradar-proxy-headers.conf
 sed "s/__JOBRADAR_DOMAIN__/${domain}/g" "${app_dir}/deploy/nginx-jobradar-http.conf" >/etc/nginx/sites-available/jobradar
 ln -sfn /etc/nginx/sites-available/jobradar /etc/nginx/sites-enabled/jobradar
 rm -f /etc/nginx/sites-enabled/default

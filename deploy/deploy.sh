@@ -21,6 +21,7 @@ if [[ ! -x ${uv_bin} ]]; then
 fi
 
 runuser -u "${app_user}" -- git -C "${app_dir}" pull --ff-only
+install -m 0644 "${app_dir}/deploy/nginx-proxy-headers.conf" /etc/nginx/conf.d/jobradar-proxy-headers.conf
 runuser -u "${app_user}" -- env UV_PYTHON_INSTALL_DIR="${uv_python_dir}" \
     "${uv_bin}" sync --frozen --no-dev --directory "${app_dir}"
 runuser -u "${app_user}" -- env UV_PYTHON_INSTALL_DIR="${uv_python_dir}" \
@@ -35,6 +36,8 @@ install -o root -g root -m 0755 \
     "${app_dir}/deploy/backup.sh" \
     "${app_dir}/deploy/restore-verify.sh" \
     /usr/local/lib/jobradar/
+nginx -t
+systemctl reload nginx
 systemctl daemon-reload
 systemctl enable --now jobradar-backup.timer
 systemctl restart jobradar-api.service jobradar-worker.service
