@@ -119,3 +119,47 @@ def test_보존_정책은_기한지난_본문과_실행이력_알림_변경이�
         db_session.scalar(select(JobPostingRevision).where(JobPostingRevision.id == revision.id))
         is None
     )
+
+
+@pytest.mark.integration
+def test_마감일의_다음날이_지난_공고는_연관_이력과_함께_삭제한다(db_session: Session) -> None:
+    now = datetime(2026, 8, 25, 0, 30, tzinfo=UTC)  # KST 09:30
+    source = _source()
+    db_session.add(source)
+    db_session.flush()
+    expired = JobPosting(
+        source_id=source.id,
+        external_id=uuid4().hex,
+        fingerprint=uuid4().hex,
+        content_hash="a" * 64,
+        url="https://example.com/jobs/expired",
+        title="삭제 대상 공고",
+        deadline_at=datetime(2026, 8, 22, 15, tzinfo=UTC),  # KST 8월 23일
+    )
+    retained = JobPosting(
+        source_id=source.id,
+        external_id=uuid4().hex,
+        fingerprint=uuid4().hex,
+        content_hash="b" * 64,
+        url="https://example.com/jobs/retained",
+        title="보존 대상 공고",
+        deadline_at=datetime(2026, 8, 23, 15, tzinfo=UTC),  # KST 8월 24일
+    )
+    db_session.add_all([expired, retained])
+    db_session.flush()
+    notification = Notification(
+        job_posting_id=expired.id,
+        channel=NotificationChannel.KAKAO,
+        status=NotificationStatus.SENT,
+        sent_at=now,
+    )
+    db_session.add(notification)
+    db_session.flush()
+
+    summary = RetentionService(db_session).run(now=now)
+    db_session.flush()
+
+    assert summary.postings_deleted == 1
+    assert db_session.get(JobPosting, expired.id) is None
+    assert db_session.get(Notification, notification.id) is None
+    assert db_session.get(JobPosting, retained.id) is retained

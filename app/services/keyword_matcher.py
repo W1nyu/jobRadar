@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from app.core.interests import is_primary_include_term
 from app.models import KeywordKind, MatchMode
 from app.repositories import JobKeywordMatchRepository, KeywordRepository
 
@@ -36,11 +37,12 @@ class KeywordMatchResult:
 
     include_matches: tuple[KeywordMatchEvidence, ...]
     exclude_matches: tuple[KeywordMatchEvidence, ...]
+    has_primary_include: bool
 
     @property
     def is_matched(self) -> bool:
-        """관심 키워드가 하나 이상이고 제외 키워드는 없어야 관심 공고다."""
-        return bool(self.include_matches) and not self.exclude_matches
+        """주 관심 키워드가 있고 제외 키워드는 없어야 관심 공고다."""
+        return self.has_primary_include and not self.exclude_matches
 
     @property
     def all_matches(self) -> tuple[KeywordMatchEvidence, ...]:
@@ -79,6 +81,7 @@ def evaluate_keywords(*, posting: JobPosting, keywords: Sequence[Keyword]) -> Ke
     """DB 접근 없이 활성 키워드와 공고 한 건의 매칭 결과를 계산한다."""
     include_matches: list[KeywordMatchEvidence] = []
     exclude_matches: list[KeywordMatchEvidence] = []
+    has_primary_include = False
     fields = {"title": posting.title, "description": posting.description or ""}
 
     for keyword in keywords:
@@ -97,12 +100,14 @@ def evaluate_keywords(*, posting: JobPosting, keywords: Sequence[Keyword]) -> Ke
         )
         if keyword.kind is KeywordKind.INCLUDE:
             include_matches.append(evidence)
+            has_primary_include = has_primary_include or is_primary_include_term(keyword.term)
         else:
             exclude_matches.append(evidence)
 
     return KeywordMatchResult(
         include_matches=tuple(sorted(include_matches, key=_sort_key)),
         exclude_matches=tuple(sorted(exclude_matches, key=_sort_key)),
+        has_primary_include=has_primary_include,
     )
 
 

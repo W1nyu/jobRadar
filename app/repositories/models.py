@@ -351,6 +351,21 @@ class RetentionRepository:
             cleared += 1
         return cleared
 
+    def delete_postings_with_deadline_before(self, *, deadline_before: datetime) -> int:
+        """마감일 다음 날까지 지난 공고와 CASCADE 연관 이력을 완전히 삭제한다."""
+        postings = self.session.scalars(
+            select(JobPosting)
+            .where(
+                JobPosting.deadline_at.is_not(None),
+                JobPosting.deadline_at < deadline_before,
+            )
+            .with_for_update()
+        ).all()
+        for posting in postings:
+            self.session.delete(posting)
+        self.session.flush()
+        return len(postings)
+
     def delete_crawl_runs_before(self, *, started_before: datetime) -> int:
         """대시보드에 더 이상 필요 없는 오래된 실행 이력을 삭제한다."""
         result = self.session.execute(delete(CrawlRun).where(CrawlRun.started_at < started_before))

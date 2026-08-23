@@ -196,3 +196,28 @@ def test_수집기가_신규_공고의_키워드_근거를_함께_저장한다(
     assert result.items_new == 1
     assert result.items_matched == 1
     assert match is not None
+
+
+@pytest.mark.integration
+def test_신입_인턴_같은_보조_키워드만_일치한_공고는_저장하지_않는다(
+    db_session: Session, posting: JobPosting
+) -> None:
+    _keyword(db_session, term="인턴")
+
+    result = CollectorService(db_session).collect(
+        source_id=posting.source_id,
+        raw_jobs=[
+            RawJob(
+                external_id=f"generic-{uuid4().hex}",
+                url="https://example.com/jobs/generic",
+                title="브랜드 마케팅 인턴",
+            )
+        ],
+    )
+
+    assert result.items_new == 0
+    assert result.items_matched == 0
+    assert (
+        db_session.scalar(select(JobPosting).where(JobPosting.external_id.like("generic-%")))
+        is None
+    )

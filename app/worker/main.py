@@ -108,8 +108,8 @@ class WorkerScheduler:
             self.scheduler.add_job(
                 self.run_retention,
                 trigger="cron",
-                hour=4,
-                minute=30,
+                hour=0,
+                minute=5,
                 timezone=ZoneInfo(self.timezone),
                 id="retention",
                 replace_existing=True,

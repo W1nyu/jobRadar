@@ -12,7 +12,10 @@ class FixtureHttp:
         return RawPage(
             url=url,
             body=(
-                Path(__file__).parents[1] / "fixtures" / "linkareer" / "list_2026-08-22.html"
+                Path(__file__).parents[1]
+                / "fixtures"
+                / "linkareer"
+                / "recruit_list_2026-08-23.html"
             ).read_bytes(),
             status_code=200,
             headers={},
@@ -43,8 +46,8 @@ def test_crawl_once는_소스와_무관하게_raw_job_목록을_반환한다() -
 
     result = crawl_once("linkareer", settings, http=FixtureHttp())
 
-    assert len(result.items) == 4
-    assert result.items[0].title == "2026 살생물제 안전관리 홍보단 모집"
+    assert len(result.items) == 2
+    assert result.items[0].title == "GenOS AI Engineer (전환형 인턴)"
 
 
 def test_공공데이터포털_수집도_raw_job_목록을_반환한다() -> None:

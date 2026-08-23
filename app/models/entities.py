@@ -165,9 +165,15 @@ class JobPosting(Base):
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     source: Mapped[Source] = relationship(back_populates="job_postings")
-    revisions: Mapped[list[JobPostingRevision]] = relationship(back_populates="job_posting")
-    keyword_matches: Mapped[list[JobKeywordMatch]] = relationship(back_populates="job_posting")
-    notifications: Mapped[list[Notification]] = relationship(back_populates="job_posting")
+    revisions: Mapped[list[JobPostingRevision]] = relationship(
+        back_populates="job_posting", cascade="all, delete-orphan"
+    )
+    keyword_matches: Mapped[list[JobKeywordMatch]] = relationship(
+        back_populates="job_posting", cascade="all, delete-orphan"
+    )
+    notifications: Mapped[list[Notification]] = relationship(
+        back_populates="job_posting", cascade="all, delete-orphan"
+    )
 
 
 class JobPostingRevision(Base):

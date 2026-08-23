@@ -99,6 +99,7 @@ def test_알림_디스패치와_카카오_토큰_갱신_보존정책도_워커_�
         job_ids = {job.id for job in worker.scheduler.get_jobs()}
         notification_trigger = worker.scheduler.get_job("notification-dispatch").trigger
         refresh_timezone = str(worker.scheduler.get_job("kakao-token-refresh").trigger.timezone)
+        retention_trigger = worker.scheduler.get_job("retention").trigger
     finally:
         worker.shutdown()
 
@@ -109,3 +110,6 @@ def test_알림_디스패치와_카카오_토큰_갱신_보존정책도_워커_�
     assert notification_trigger.fields[6].expressions[0].first == 0
     assert str(notification_trigger.timezone) == "Asia/Seoul"
     assert refresh_timezone == "Asia/Seoul"
+    assert retention_trigger.fields[5].expressions[0].first == 0
+    assert retention_trigger.fields[6].expressions[0].first == 5
+    assert str(retention_trigger.timezone) == "Asia/Seoul"

@@ -62,16 +62,22 @@ class CollectorService:
 
                 deduplicated = self.deduplicator.upsert(job)
                 if deduplicated.is_new:
-                    items_new += 1
-                    if self.keyword_matcher.match_and_record(
+                    match_result = self.keyword_matcher.match_and_record(
                         posting=deduplicated.posting
-                    ).is_matched:
-                        items_matched += 1
+                    )
+                    if not match_result.is_matched:
+                        # 보조 조건(신입·인턴)만 맞거나 제외 키워드가 맞은 공고는 DB에 남기지
+                        # 않는다. 이후 알림·관리 화면도 관심 공고만 보게 된다.
+                        self.session.delete(deduplicated.posting)
+                        continue
+                    items_new += 1
+                    items_matched += 1
                     continue
 
                 posting = deduplicated.posting
 
-                if posting.content_hash != job.content_hash:
+                was_changed = posting.content_hash != job.content_hash
+                if was_changed:
                     fields = changed_fields(posting, job)
                     self.revisions.create(
                         job_posting_id=posting.id,
@@ -79,8 +85,13 @@ class CollectorService:
                         old_content_hash=posting.content_hash,
                         new_content_hash=job.content_hash,
                     )
-                    items_updated += 1
                 self.postings.apply_seen(posting, job, seen_at=now)
+                match_result = self.keyword_matcher.match_and_record(posting=posting)
+                if not match_result.is_matched:
+                    self.session.delete(posting)
+                    continue
+                if was_changed:
+                    items_updated += 1
 
             items_closed = (
                 self.postings.close_missing(

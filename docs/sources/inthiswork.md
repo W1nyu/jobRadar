@@ -4,7 +4,9 @@
 
 ## 수집 대상
 
-- 서비스: [IN THIS WORK · 인디스워크](https://inthiswork.com/)
+- 서비스: [IN THIS WORK · 인디스워크](https://inthiswork.com/entry)
+- 사용자용 채용 진입 화면은 `/entry`다. 크롤러는 같은 서비스가 공개한 WordPress 목록 API를
+  사용해 브라우저 렌더링 없이 채용 분류만 가져온다.
 - 목록 URL: `https://inthiswork.com/wp-json/wp/v2/posts`
 - 방식: WordPress 공개 JSON API
 - 크롤러 키: `inthiswork`

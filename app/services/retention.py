@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
@@ -15,6 +16,7 @@ class RetentionSummary:
     """한 번의 보존 정책 실행 결과."""
 
     content_cleared: int
+    postings_deleted: int
     crawl_runs_deleted: int
     notifications_deleted: int
     revisions_deleted: int
@@ -33,6 +35,9 @@ class RetentionService:
             content_cleared=self.repository.clear_closed_posting_content(
                 closed_before=now - timedelta(days=90)
             ),
+            postings_deleted=self.repository.delete_postings_with_deadline_before(
+                deadline_before=_deadline_expiry_cutoff(now)
+            ),
             crawl_runs_deleted=self.repository.delete_crawl_runs_before(
                 started_before=now - timedelta(days=30)
             ),
@@ -43,3 +48,12 @@ class RetentionService:
                 detected_before=now - timedelta(days=180)
             ),
         )
+
+
+def _deadline_expiry_cutoff(now: datetime) -> datetime:
+    """KST 기준 마감 다음 날이 끝난 공고를 가르는 UTC 시각을 계산한다."""
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=UTC)
+    korea = ZoneInfo("Asia/Seoul")
+    cutoff_date = now.astimezone(korea).date() - timedelta(days=1)
+    return datetime.combine(cutoff_date, time.min, tzinfo=korea).astimezone(UTC)
